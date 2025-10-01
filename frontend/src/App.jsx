@@ -5,6 +5,8 @@ import EarthquakeList from './components/EarthquakeList';
 import Statistics from './components/Statistics';
 import VolcanoList from './components/VolcanoList';
 import AIAnalysis from './components/AIAnalysis';
+import useCountUp from './hooks/useCountUp';
+import useTabStore from './store/tabStore';
 // Import your custom logo - place your logo.jpg in the src/assets folder
 import logoImage from './assets/logo.jpg';
 
@@ -15,9 +17,11 @@ function App() {
   const [volcanoes, setVolcanoes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState(null);
-  const [activeTab, setActiveTab] = useState('map');
   const [currentTime, setCurrentTime] = useState(new Date());
   const [showAllEarthquakes, setShowAllEarthquakes] = useState(false);
+  
+  // Use Zustand for tab management to enable smooth animations
+  const { activeTab, setActiveTab } = useTabStore();
 
   const fetchData = async () => {
     setLoading(true);
@@ -72,6 +76,12 @@ function App() {
     }, 1000);
     return () => clearInterval(clockInterval);
   }, []);
+
+  // Animated values for summary cards
+  const animatedEarthquakesCount = useCountUp(earthquakes.length, 800, 0);
+  const animatedSignificantCount = useCountUp(significantEarthquakes.length, 800, 0);
+  const animatedActiveVolcanoes = useCountUp(volcanoes.filter(v => v.alert_level > 0).length, 800, 0);
+  const animatedMaxMagnitude = useCountUp(statistics ? statistics.magnitude_stats.max : 0, 800, 1);
 
   const getMagnitudeColor = (magnitude) => {
     if (magnitude >= 7) return 'text-red-600';
@@ -187,7 +197,7 @@ function App() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Recent Earthquakes</p>
-                <p className="text-3xl font-bold text-gray-900">{earthquakes.length}</p>
+                <p className="text-3xl font-bold text-gray-900">{animatedEarthquakesCount}</p>
                 <p className="text-xs text-gray-500 mt-1">Last 7 days</p>
               </div>
               <Activity className="h-12 w-12 text-purple-600 opacity-20" />
@@ -198,7 +208,7 @@ function App() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Significant Events</p>
-                <p className="text-3xl font-bold text-orange-600">{significantEarthquakes.length}</p>
+                <p className="text-3xl font-bold text-orange-600">{animatedSignificantCount}</p>
                 <p className="text-xs text-gray-500 mt-1">M ≥ 4.5 (30 days)</p>
               </div>
               <AlertTriangle className="h-12 w-12 text-orange-600 opacity-20" />
@@ -209,7 +219,7 @@ function App() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Active Volcanoes</p>
-                <p className="text-3xl font-bold text-red-600">{volcanoes.filter(v => v.alert_level > 0).length}</p>
+                <p className="text-3xl font-bold text-red-600">{animatedActiveVolcanoes}</p>
                 <p className="text-xs text-gray-500 mt-1">Alert Level {'>'} 0</p>
               </div>
               <Mountain className="h-12 w-12 text-red-600 opacity-20" />
@@ -221,7 +231,7 @@ function App() {
               <div>
                 <p className="text-sm text-gray-600">Max Magnitude</p>
                 <p className={`text-3xl font-bold ${statistics ? getMagnitudeColor(statistics.magnitude_stats.max) : 'text-gray-900'}`}>
-                  {statistics ? statistics.magnitude_stats.max.toFixed(1) : '--'}
+                  {statistics ? animatedMaxMagnitude.toFixed(1) : '--'}
                 </p>
                 <p className="text-xs text-gray-500 mt-1">Last 30 days</p>
               </div>

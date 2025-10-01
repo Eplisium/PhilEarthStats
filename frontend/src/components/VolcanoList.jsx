@@ -1,7 +1,12 @@
 import React from 'react';
 import { Mountain, MapPin, TrendingUp, AlertTriangle } from 'lucide-react';
+import useCountUp from '../hooks/useCountUp';
 
 const VolcanoList = ({ volcanoes }) => {
+  // Animated numbers for statistics
+  const totalMonitored = useCountUp(volcanoes.length, 800, 0);
+  const onAlert = useCountUp(volcanoes.filter(v => v.alert_level > 0).length, 800, 0);
+  const normalStatus = useCountUp(volcanoes.filter(v => v.alert_level === 0).length, 800, 0);
   const getAlertLevelColor = (level) => {
     if (level >= 3) return 'bg-red-100 text-red-800 border-red-300';
     if (level >= 2) return 'bg-orange-100 text-orange-800 border-orange-300';
@@ -65,7 +70,7 @@ const VolcanoList = ({ volcanoes }) => {
             <Mountain className="h-5 w-5 text-gray-600" />
             <span className="text-sm text-gray-600">Total Monitored</span>
           </div>
-          <p className="text-2xl font-bold text-gray-900">{volcanoes.length}</p>
+          <p className="text-2xl font-bold text-gray-900">{totalMonitored}</p>
         </div>
         <div className="bg-white border border-gray-200 rounded-lg p-4">
           <div className="flex items-center gap-2 mb-2">
@@ -73,7 +78,7 @@ const VolcanoList = ({ volcanoes }) => {
             <span className="text-sm text-gray-600">On Alert</span>
           </div>
           <p className="text-2xl font-bold text-orange-600">
-            {volcanoes.filter(v => v.alert_level > 0).length}
+            {onAlert}
           </p>
         </div>
         <div className="bg-white border border-gray-200 rounded-lg p-4">
@@ -82,7 +87,7 @@ const VolcanoList = ({ volcanoes }) => {
             <span className="text-sm text-gray-600">Normal Status</span>
           </div>
           <p className="text-2xl font-bold text-sky-500">
-            {volcanoes.filter(v => v.alert_level === 0).length}
+            {normalStatus}
           </p>
         </div>
       </div>
