@@ -7,12 +7,20 @@ import time
 import pytz
 import os
 from dotenv import load_dotenv
+from database import db, DatabaseService, EarthquakeEvent, YearStatistics
 
 # Load environment variables
 load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
+
+# Database configuration
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///earthquakes.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+# Initialize database
+DatabaseService.initialize_database(app)
 
 # API Endpoints
 USGS_API = "https://earthquake.usgs.gov/fdsnws/event/1/query"
@@ -94,6 +102,9 @@ def get_all_earthquakes():
                     'depth': coords[2]
                 })
             
+            # Store earthquakes in database for historical tracking
+            DatabaseService.store_multiple_earthquakes(earthquakes)
+            
             return {
                 'success': True,
                 'count': len(earthquakes),
@@ -165,6 +176,9 @@ def get_recent_earthquakes():
                     'latitude': coords[1],
                     'depth': coords[2]
                 })
+            
+            # Store earthquakes in database for historical tracking
+            DatabaseService.store_multiple_earthquakes(earthquakes)
             
             return {
                 'success': True,
@@ -485,7 +499,12 @@ def get_info():
             '/api/time': 'Get server time information',
             '/api/health': 'Health check',
             '/api/info': 'API information',
-            '/api/ai/analyze': 'Get AI-powered analysis of earthquake data (POST)'
+            '/api/ai/analyze': 'Get AI-powered analysis of earthquake data (POST)',
+            '/api/history/worst-years': 'Get worst earthquake years ranked by severity',
+            '/api/history/year/<year>': 'Get earthquake data for a specific year',
+            '/api/calendar': 'Get calendar view of earthquakes by date',
+            '/api/history/date-range': 'Get earthquakes within a date range',
+            '/api/history/sync': 'Sync historical data from USGS (POST)'
         },
         'data_sources': [
             'USGS Earthquake Catalog (earthquake.usgs.gov)',
@@ -684,6 +703,177 @@ Be specific, professional, and provide context. Format your response with clear 
         return jsonify({
             'success': False,
             'error': f'Failed to generate AI analysis: {str(e)}'
+        }), 500
+
+@app.route('/api/history/worst-years', methods=['GET'])
+def get_worst_years():
+    """Get the worst earthquake years in Philippine history"""
+    try:
+        limit = request.args.get('limit', 10, type=int)
+        worst_years = DatabaseService.get_worst_years(limit=limit)
+        
+        return jsonify({
+            'success': True,
+            'count': len(worst_years),
+            'worst_years': worst_years,
+            'metadata': {
+                'generated': int(time.time() * 1000),
+                'server_time_utc': datetime.utcnow().isoformat() + 'Z',
+                'description': 'Worst earthquake years ranked by severity score',
+                'source': 'PhilEarthStats Historical Database'
+            }
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Failed to fetch worst years: {str(e)}'
+        }), 500
+
+@app.route('/api/history/year/<int:year>', methods=['GET'])
+def get_year_data(year):
+    """Get earthquake data for a specific year"""
+    try:
+        # Get year statistics
+        year_stat = YearStatistics.query.get(year)
+        
+        # Get all events for that year
+        events = DatabaseService.get_events_by_year(year)
+        
+        return jsonify({
+            'success': True,
+            'year': year,
+            'statistics': year_stat.to_dict() if year_stat else None,
+            'event_count': len(events),
+            'events': events[:100],  # Limit to 100 most significant
+            'metadata': {
+                'generated': int(time.time() * 1000),
+                'server_time_utc': datetime.utcnow().isoformat() + 'Z',
+                'source': 'PhilEarthStats Historical Database'
+            }
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Failed to fetch year data: {str(e)}'
+        }), 500
+
+@app.route('/api/calendar', methods=['GET'])
+def get_calendar():
+    """Get earthquake calendar data"""
+    try:
+        year = request.args.get('year', datetime.utcnow().year, type=int)
+        month = request.args.get('month', type=int)
+        
+        calendar_data = DatabaseService.get_calendar_data(year=year, month=month)
+        
+        return jsonify({
+            'success': True,
+            'year': year,
+            'month': month,
+            'calendar_data': calendar_data,
+            'metadata': {
+                'generated': int(time.time() * 1000),
+                'server_time_utc': datetime.utcnow().isoformat() + 'Z',
+                'source': 'PhilEarthStats Historical Database'
+            }
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Failed to fetch calendar data: {str(e)}'
+        }), 500
+
+@app.route('/api/history/date-range', methods=['GET'])
+def get_date_range():
+    """Get earthquake events within a date range"""
+    try:
+        start = request.args.get('start', (datetime.utcnow() - timedelta(days=30)).strftime('%Y-%m-%d'))
+        end = request.args.get('end', datetime.utcnow().strftime('%Y-%m-%d'))
+        
+        start_date = datetime.strptime(start, '%Y-%m-%d')
+        end_date = datetime.strptime(end, '%Y-%m-%d')
+        
+        events = DatabaseService.get_events_by_date_range(start_date, end_date)
+        
+        return jsonify({
+            'success': True,
+            'start_date': start,
+            'end_date': end,
+            'event_count': len(events),
+            'events': events,
+            'metadata': {
+                'generated': int(time.time() * 1000),
+                'server_time_utc': datetime.utcnow().isoformat() + 'Z',
+                'source': 'PhilEarthStats Historical Database'
+            }
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Failed to fetch date range data: {str(e)}'
+        }), 500
+
+@app.route('/api/history/sync', methods=['POST'])
+def sync_historical_data():
+    """Sync historical data from USGS for a specific time period"""
+    try:
+        # Get parameters from request
+        data = request.get_json() or {}
+        start_date = data.get('start_date', (datetime.utcnow() - timedelta(days=365)).strftime('%Y-%m-%d'))
+        end_date = data.get('end_date', datetime.utcnow().strftime('%Y-%m-%d'))
+        
+        # Fetch from USGS
+        params = {
+            'format': 'geojson',
+            'starttime': start_date,
+            'endtime': end_date,
+            **PHILIPPINES_BOUNDS,
+            'orderby': 'time'
+        }
+        
+        response = requests.get(USGS_API, params=params, timeout=30)
+        response.raise_for_status()
+        usgs_data = response.json()
+        
+        # Process and store
+        earthquakes = []
+        for feature in usgs_data['features']:
+            props = feature['properties']
+            coords = feature['geometry']['coordinates']
+            
+            earthquakes.append({
+                'id': feature['id'],
+                'magnitude': props.get('mag'),
+                'place': props.get('place'),
+                'time': props.get('time'),
+                'latitude': coords[1],
+                'longitude': coords[0],
+                'depth': coords[2],
+                'significance': props.get('sig'),
+                'felt': props.get('felt'),
+                'alert': props.get('alert'),
+                'tsunami': props.get('tsunami', 0),
+                'type': props.get('type', 'earthquake'),
+                'status': props.get('status', 'automatic')
+            })
+        
+        stored_count = DatabaseService.store_multiple_earthquakes(earthquakes)
+        
+        return jsonify({
+            'success': True,
+            'synced_count': stored_count,
+            'total_fetched': len(earthquakes),
+            'start_date': start_date,
+            'end_date': end_date,
+            'metadata': {
+                'generated': int(time.time() * 1000),
+                'server_time_utc': datetime.utcnow().isoformat() + 'Z'
+            }
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Failed to sync historical data: {str(e)}'
         }), 500
 
 if __name__ == '__main__':

@@ -3,6 +3,7 @@ import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Toolti
 import { TrendingUp, Activity, Layers } from 'lucide-react';
 import useCountUp from '../hooks/useCountUp';
 import useTabStore from '../store/tabStore';
+import EarthquakeCalendar from './EarthquakeCalendar';
 
 const Statistics = ({ statistics }) => {
   const [chartKey, setChartKey] = useState(0);
@@ -173,6 +174,7 @@ const Statistics = ({ statistics }) => {
                   dataKey="value" 
                   name="Count"
                   isAnimationActive={true}
+                  isUpdateAnimationActive={true}
                   animationBegin={0}
                   animationDuration={1500}
                   animationEasing="ease-in-out"
@@ -236,6 +238,7 @@ const Statistics = ({ statistics }) => {
                   fill="#8884d8"
                   dataKey="value"
                   isAnimationActive={true}
+                  isUpdateAnimationActive={true}
                   animationBegin={200}
                   animationDuration={1800}
                   animationEasing="ease-in-out"
@@ -281,7 +284,7 @@ const Statistics = ({ statistics }) => {
         animateCards ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
       }`}>
         {/* Magnitude Stats */}
-        <div className="bg-white border border-gray-200 rounded-lg p-6 transform transition-all duration-500 hover:scale-102 hover:shadow-xl">
+        <div className="bg-white border border-gray-200 rounded-lg p-6 transform transition-all duration-500 hover:scale-[1.02] hover:shadow-xl">
           <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
             <TrendingUp className="h-5 w-5" />
             Magnitude Statistics
@@ -324,7 +327,7 @@ const Statistics = ({ statistics }) => {
         </div>
 
         {/* Depth Stats */}
-        <div className="bg-white border border-gray-200 rounded-lg p-6 transform transition-all duration-500 hover:scale-102 hover:shadow-xl">
+        <div className="bg-white border border-gray-200 rounded-lg p-6 transform transition-all duration-500 hover:scale-[1.02] hover:shadow-xl">
           <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
             <Layers className="h-5 w-5" />
             Depth Statistics
@@ -376,8 +379,15 @@ const Statistics = ({ statistics }) => {
         </div>
       </div>
 
+      {/* Historical Tracking & Calendar */}
+      <div className={`transition-all duration-700 delay-700 ${
+        animateCards ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+      }`}>
+        <EarthquakeCalendar />
+      </div>
+
       {/* Info Box */}
-      <div className={`bg-purple-50 border border-purple-200 rounded-lg p-4 transition-all duration-700 delay-500 ${
+      <div className={`bg-purple-50 border border-purple-200 rounded-lg p-4 transition-all duration-700 delay-900 ${
         animateCards ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
       }`}>
         <p className="text-sm text-purple-800">
