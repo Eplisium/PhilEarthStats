@@ -1,86 +1,54 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useCallback, useMemo } from 'react';
 import { Activity, MapPin, TrendingUp, AlertTriangle, RefreshCw, Mountain, Brain } from 'lucide-react';
 import EarthquakeMap from './components/EarthquakeMap';
 import EarthquakeList from './components/EarthquakeList';
 import Statistics from './components/Statistics';
 import VolcanoList from './components/VolcanoList';
 import AIAnalysis from './components/AIAnalysis';
+import CustomTooltip from './components/CustomTooltip';
 import useCountUp from './hooks/useCountUp';
 import useTabStore from './store/tabStore';
+import useDataStore from './store/useDataStore';
 // Import your custom logo - place your logo.jpg in the src/assets folder
 import logoImage from './assets/logo.jpg';
 
 function App() {
-  const [earthquakes, setEarthquakes] = useState([]);
-  const [significantEarthquakes, setSignificantEarthquakes] = useState([]);
-  const [statistics, setStatistics] = useState(null);
-  const [volcanoes, setVolcanoes] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [lastUpdate, setLastUpdate] = useState(null);
-  const [currentTime, setCurrentTime] = useState(new Date());
-  const [showAllEarthquakes, setShowAllEarthquakes] = useState(false);
-  
-  // Use Zustand for tab management to enable smooth animations
+  // Use Zustand stores with optimized selectors
   const { activeTab, setActiveTab } = useTabStore();
-
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      // Fetch from the new /all endpoint to get all earthquakes including aftershocks
-      const earthquakeEndpoint = showAllEarthquakes ? '/api/earthquakes/all' : '/api/earthquakes/recent';
-      
-      const [earthquakesRes, significantRes, statsRes, volcanoesRes] = await Promise.all([
-        fetch(earthquakeEndpoint),
-        fetch('/api/earthquakes/significant'),
-        fetch('/api/earthquakes/statistics'),
-        fetch('/api/volcanoes/active')
-      ]);
-
-      const earthquakesData = await earthquakesRes.json();
-      const significantData = await significantRes.json();
-      const statsData = await statsRes.json();
-      const volcanoesData = await volcanoesRes.json();
-
-      if (earthquakesData.success) {
-        setEarthquakes(earthquakesData.earthquakes);
-      }
-      if (significantData.success) {
-        setSignificantEarthquakes(significantData.earthquakes);
-      }
-      if (statsData.success) {
-        setStatistics(statsData);
-      }
-      if (volcanoesData.success) {
-        setVolcanoes(volcanoesData.volcanoes);
-      }
-
-      setLastUpdate(new Date());
-    } catch (error) {
-      console.error('Error fetching data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  
+  // Separate selectors for better performance - only re-render when needed
+  const earthquakes = useDataStore(state => state.earthquakes);
+  const significantEarthquakes = useDataStore(state => state.significantEarthquakes);
+  const statistics = useDataStore(state => state.statistics);
+  const volcanoes = useDataStore(state => state.volcanoes);
+  const loading = useDataStore(state => state.loading);
+  const lastUpdate = useDataStore(state => state.lastUpdate);
+  const currentTime = useDataStore(state => state.currentTime);
+  const showAllEarthquakes = useDataStore(state => state.showAllEarthquakes);
+  
+  // Actions
+  const fetchData = useDataStore(state => state.fetchData);
+  const toggleShowAllEarthquakes = useDataStore(state => state.toggleShowAllEarthquakes);
+  const updateCurrentTime = useDataStore(state => state.updateCurrentTime);
+  const getActiveVolcanoesCount = useDataStore(state => state.getActiveVolcanoesCount);
 
   useEffect(() => {
     fetchData();
     // Auto-refresh every 5 minutes
     const interval = setInterval(fetchData, 5 * 60 * 1000);
     return () => clearInterval(interval);
-  }, [showAllEarthquakes]);
+  }, [showAllEarthquakes, fetchData]);
 
   // Real-time clock update every second
   useEffect(() => {
-    const clockInterval = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 1000);
+    const clockInterval = setInterval(updateCurrentTime, 1000);
     return () => clearInterval(clockInterval);
-  }, []);
+  }, [updateCurrentTime]);
 
   // Animated values for summary cards
   const animatedEarthquakesCount = useCountUp(earthquakes.length, 800, 0);
   const animatedSignificantCount = useCountUp(significantEarthquakes.length, 800, 0);
-  const animatedActiveVolcanoes = useCountUp(volcanoes.filter(v => v.alert_level > 0).length, 800, 0);
+  const animatedActiveVolcanoes = useCountUp(getActiveVolcanoesCount(), 800, 0);
   const animatedMaxMagnitude = useCountUp(statistics ? statistics.magnitude_stats.max : 0, 800, 1);
 
   const getMagnitudeColor = (magnitude) => {
@@ -122,13 +90,14 @@ function App() {
               />
               <Activity className="h-8 w-8 text-purple-600 hidden" />
               <div>
-                <h1 
-                  className="text-3xl font-bold text-gray-900 cursor-pointer hover:text-purple-600 transition-colors"
-                  onClick={scrollToTop}
-                  title="Click to scroll to top"
-                >
-                  PhilEarthStats
-                </h1>
+                <CustomTooltip text="Click to scroll to top" position="bottom">
+                  <h1 
+                    className="text-3xl font-bold text-gray-900 cursor-pointer hover:text-purple-600 transition-colors"
+                    onClick={scrollToTop}
+                  >
+                    PhilEarthStats
+                  </h1>
+                </CustomTooltip>
                 <p className="text-sm text-gray-600">Real-time Philippines Seismic & Volcanic Monitor</p>
               </div>
             </div>
@@ -179,7 +148,7 @@ function App() {
               </p>
             </div>
             <button
-              onClick={() => setShowAllEarthquakes(!showAllEarthquakes)}
+              onClick={toggleShowAllEarthquakes}
               className={`px-6 py-3 rounded-lg font-medium transition-all ${
                 showAllEarthquakes
                   ? 'bg-orange-600 text-white hover:bg-orange-700'
@@ -321,25 +290,19 @@ function App() {
             )}
 
             {!loading && activeTab === 'map' && (
-              <EarthquakeMap 
-                earthquakes={earthquakes} 
-                volcanoes={volcanoes}
-              />
+              <EarthquakeMap />
             )}
 
             {!loading && activeTab === 'earthquakes' && (
-              <EarthquakeList 
-                earthquakes={earthquakes}
-                significantEarthquakes={significantEarthquakes}
-              />
+              <EarthquakeList />
             )}
 
             {!loading && activeTab === 'volcanoes' && (
-              <VolcanoList volcanoes={volcanoes} />
+              <VolcanoList />
             )}
 
             {!loading && activeTab === 'statistics' && statistics && (
-              <Statistics statistics={statistics} />
+              <Statistics />
             )}
 
             {activeTab === 'ai-analysis' && (

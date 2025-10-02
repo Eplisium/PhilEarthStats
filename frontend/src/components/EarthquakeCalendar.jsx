@@ -1,50 +1,53 @@
-import React, { useState, useEffect } from 'react';
-import { Calendar, ChevronLeft, ChevronRight, AlertCircle, TrendingUp } from 'lucide-react';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+import React, { useEffect, useState } from 'react';
+import { Calendar, ChevronLeft, ChevronRight, AlertCircle, TrendingUp, Download, RefreshCw, CalendarClock } from 'lucide-react';
+import useCalendarStore from '../store/useCalendarStore';
+import CustomTooltip from './CustomTooltip';
 
 const EarthquakeCalendar = () => {
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const [calendarData, setCalendarData] = useState([]);
-  const [selectedDate, setSelectedDate] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [worstYears, setWorstYears] = useState([]);
+  // Use Zustand store
+  const {
+    currentDate,
+    calendarData,
+    selectedDate,
+    setSelectedDate,
+    loading,
+    worstYears,
+    changeMonth,
+    getEventsForDate,
+    initialize,
+    setCurrentDate,
+    syncing,
+    syncStatus,
+    syncDateRange,
+  } = useCalendarStore();
+
+  // Local state for month/year picker
+  const [showMonthPicker, setShowMonthPicker] = useState(false);
+  const [showYearPicker, setShowYearPicker] = useState(false);
 
   useEffect(() => {
-    fetchCalendarData();
-    fetchWorstYears();
-  }, [currentDate]);
+    initialize();
+  }, [initialize]);
 
-  const fetchCalendarData = async () => {
-    setLoading(true);
-    try {
-      const year = currentDate.getFullYear();
-      const month = currentDate.getMonth() + 1;
-      const response = await fetch(`${API_BASE_URL}/api/calendar?year=${year}&month=${month}`);
-      const data = await response.json();
-      
-      if (data.success) {
-        setCalendarData(data.calendar_data);
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showMonthPicker || showYearPicker) {
+        const target = event.target;
+        const isMonthButton = target.closest('button')?.textContent === currentDate.toLocaleDateString('en-US', { month: 'long' });
+        const isYearButton = target.closest('button')?.textContent === String(currentDate.getFullYear());
+        const isInDropdown = target.closest('.month-picker-dropdown') || target.closest('.year-picker-dropdown');
+        
+        if (!isMonthButton && !isYearButton && !isInDropdown) {
+          setShowMonthPicker(false);
+          setShowYearPicker(false);
+        }
       }
-    } catch (error) {
-      console.error('Error fetching calendar data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
 
-  const fetchWorstYears = async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/history/worst-years?limit=10`);
-      const data = await response.json();
-      
-      if (data.success) {
-        setWorstYears(data.worst_years);
-      }
-    } catch (error) {
-      console.error('Error fetching worst years:', error);
-    }
-  };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showMonthPicker, showYearPicker, currentDate]);
 
   const getDaysInMonth = () => {
     const year = currentDate.getFullYear();
@@ -55,11 +58,6 @@ const EarthquakeCalendar = () => {
     const startingDayOfWeek = firstDay.getDay();
     
     return { daysInMonth, startingDayOfWeek };
-  };
-
-  const getEventsForDate = (day) => {
-    const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    return calendarData.find(d => d.date === dateStr);
   };
 
   const getMagnitudeColor = (magnitude) => {
@@ -79,11 +77,6 @@ const EarthquakeCalendar = () => {
       'Low': 'bg-green-500 text-white'
     };
     return colors[damageLevel] || 'bg-gray-400 text-white';
-  };
-
-  const changeMonth = (offset) => {
-    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + offset, 1));
-    setSelectedDate(null);
   };
 
   const renderCalendarDays = () => {
@@ -138,6 +131,32 @@ const EarthquakeCalendar = () => {
       hour12: true
     });
   };
+
+  const handleMonthSelect = (monthIndex) => {
+    const newDate = new Date(currentDate.getFullYear(), monthIndex, 1);
+    setCurrentDate(newDate);
+    setShowMonthPicker(false);
+  };
+
+  const handleYearSelect = (year) => {
+    const newDate = new Date(year, currentDate.getMonth(), 1);
+    setCurrentDate(newDate);
+    setShowYearPicker(false);
+  };
+
+  const generateYearRange = () => {
+    const currentYear = new Date().getFullYear();
+    const years = [];
+    for (let i = currentYear; i >= 1900; i--) {
+      years.push(i);
+    }
+    return years;
+  };
+
+  const months = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
 
   return (
     <div className="space-y-6">
@@ -205,24 +224,188 @@ const EarthquakeCalendar = () => {
             <Calendar className="h-6 w-6 text-purple-600" />
             Earthquake Calendar & Timeline
           </h3>
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => changeMonth(-1)}
-              className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-            >
-              <ChevronLeft className="h-5 w-5" />
-            </button>
-            <span className="text-lg font-semibold text-gray-800 min-w-[150px] text-center">
-              {currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-            </span>
-            <button
-              onClick={() => changeMonth(1)}
-              className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-            >
-              <ChevronRight className="h-5 w-5" />
-            </button>
+          <div className="flex items-center gap-4 relative">
+            <CustomTooltip text="Previous month" position="bottom">
+              <button
+                onClick={() => changeMonth(-1)}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </button>
+            </CustomTooltip>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  setShowMonthPicker(!showMonthPicker);
+                  setShowYearPicker(false);
+                }}
+                className="text-lg font-semibold text-gray-800 hover:text-purple-600 transition-colors px-2 py-1 rounded hover:bg-purple-50 cursor-pointer"
+              >
+                {currentDate.toLocaleDateString('en-US', { month: 'long' })}
+              </button>
+              <button
+                onClick={() => {
+                  setShowYearPicker(!showYearPicker);
+                  setShowMonthPicker(false);
+                }}
+                className="text-lg font-semibold text-gray-800 hover:text-purple-600 transition-colors px-2 py-1 rounded hover:bg-purple-50 cursor-pointer"
+              >
+                {currentDate.getFullYear()}
+              </button>
+            </div>
+            <CustomTooltip text="Next month" position="bottom">
+              <button
+                onClick={() => changeMonth(1)}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <ChevronRight className="h-5 w-5" />
+              </button>
+            </CustomTooltip>
+            
+            {/* Go to Today Button */}
+            <CustomTooltip text="Go to current month" position="bottom">
+              <button
+                onClick={() => setCurrentDate(new Date())}
+                className="ml-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all font-medium text-sm flex items-center gap-2 hover:shadow-md"
+              >
+                <CalendarClock className="h-4 w-4" />
+                Today
+              </button>
+            </CustomTooltip>
+            
+            {/* Manual Refresh Button */}
+            <CustomTooltip text="Refresh/fetch data for this month" position="bottom">
+              <button
+              onClick={() => {
+                const year = currentDate.getFullYear();
+                const month = currentDate.getMonth() + 1;
+                const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
+                const lastDay = new Date(year, month, 0).getDate();
+                const endDate = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+                syncDateRange(startDate, endDate);
+              }}
+              disabled={syncing}
+              className={`ml-2 px-4 py-2 rounded-lg font-medium text-sm flex items-center gap-2 transition-all ${
+                syncing
+                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  : 'bg-purple-600 text-white hover:bg-purple-700 hover:shadow-md'
+              }`}
+              >
+                <RefreshCw className={`h-4 w-4 ${syncing ? 'animate-spin' : ''}`} />
+                {syncing ? 'Syncing...' : 'Refresh'}
+              </button>
+            </CustomTooltip>
+
+            {/* Month Picker Dropdown */}
+            {showMonthPicker && (
+              <div className="month-picker-dropdown absolute top-12 right-0 bg-white border-2 border-purple-300 rounded-lg shadow-xl p-4 z-50 w-64">
+                <div className="grid grid-cols-3 gap-2">
+                  {months.map((month, index) => (
+                    <button
+                      key={month}
+                      onClick={() => handleMonthSelect(index)}
+                      className={`px-3 py-2 rounded text-sm font-medium transition-all ${
+                        currentDate.getMonth() === index
+                          ? 'bg-purple-600 text-white'
+                          : 'bg-gray-100 hover:bg-purple-100 text-gray-700 hover:text-purple-700'
+                      }`}
+                    >
+                      {month.substring(0, 3)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Year Picker Dropdown */}
+            {showYearPicker && (
+              <div className="year-picker-dropdown absolute top-12 right-0 bg-white border-2 border-purple-300 rounded-lg shadow-xl p-4 z-50 w-64 max-h-80 overflow-y-auto">
+                <div className="grid grid-cols-3 gap-2">
+                  {generateYearRange().map((year) => (
+                    <button
+                      key={year}
+                      onClick={() => handleYearSelect(year)}
+                      className={`px-3 py-2 rounded text-sm font-medium transition-all ${
+                        currentDate.getFullYear() === year
+                          ? 'bg-purple-600 text-white'
+                          : 'bg-gray-100 hover:bg-purple-100 text-gray-700 hover:text-purple-700'
+                      }`}
+                    >
+                      {year}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
+
+        {/* Sync Status Banner */}
+        {(syncing || syncStatus) && (
+          <div className={`mb-4 p-3 rounded-lg border-2 flex items-center gap-3 ${
+            syncing 
+              ? 'bg-blue-50 border-blue-300 text-blue-800'
+              : 'bg-green-50 border-green-300 text-green-800'
+          }`}>
+            {syncing ? (
+              <RefreshCw className="h-5 w-5 animate-spin" />
+            ) : (
+              <Download className="h-5 w-5" />
+            )}
+            <span className="font-medium">{syncStatus}</span>
+          </div>
+        )}
+
+        {/* No Data Message with Sync Option */}
+        {!loading && !syncing && calendarData.length === 0 && (() => {
+          const now = new Date();
+          const year = currentDate.getFullYear();
+          const month = currentDate.getMonth() + 1;
+          const isFutureMonth = year > now.getFullYear() || 
+                               (year === now.getFullYear() && month > now.getMonth() + 1);
+          const isPastMonth = year < now.getFullYear() || 
+                             (year === now.getFullYear() && month < now.getMonth() + 1);
+          
+          return (
+            <div className="mb-4 p-4 bg-yellow-50 border-2 border-yellow-300 rounded-lg">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-yellow-800 mb-2">
+                    No earthquake data available for {currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                  </p>
+                  {isFutureMonth ? (
+                    <p className="text-xs text-yellow-700">
+                      This is a future month. No data is available yet.
+                    </p>
+                  ) : year < 2000 ? (
+                    <p className="text-xs text-yellow-700">
+                      USGS historical data is limited before year 2000.
+                    </p>
+                  ) : (
+                    <>
+                      <p className="text-xs text-yellow-700 mb-3">
+                        Historical data can be fetched from USGS for past months and years.
+                      </p>
+                      <button
+                        onClick={() => {
+                          const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
+                          const lastDay = new Date(year, month, 0).getDate();
+                          const endDate = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+                          syncDateRange(startDate, endDate);
+                        }}
+                        className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors text-sm font-medium flex items-center gap-2"
+                      >
+                        <Download className="h-4 w-4" />
+                        Fetch Historical Data
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Calendar Legend */}
         <div className="mb-4 flex flex-wrap gap-3 text-xs">
@@ -319,10 +502,10 @@ const EarthquakeCalendar = () => {
       {/* Info Box */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <p className="text-sm text-blue-800">
-          <strong>Historical Tracking:</strong> This system continuously stores earthquake data from USGS.
+          <strong>Historical Tracking:</strong> This system stores earthquake data from USGS and can fetch historical events from past years.
           Calendar shows events by date with color-coded magnitude indicators. 
           Click on any date with events to see detailed information with precise timestamps.
-          Data persists across sessions and builds up over time.
+          When browsing past months, the system automatically fetches historical data if not yet stored.
         </p>
       </div>
     </div>

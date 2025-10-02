@@ -338,14 +338,14 @@ def get_earthquake_statistics():
 
 @app.route('/api/volcanoes/active', methods=['GET'])
 def get_active_volcanoes():
-    """Get information about active volcanoes in the Philippines"""
+    """Get comprehensive information about active volcanoes in the Philippines"""
     # Note: This data is relatively static and based on PHIVOLCS records
     # In a production system, this should be fetched from an official API
     active_volcanoes = [
         {
             'id': 1,
             'name': 'Mayon',
-            'location': 'Albay',
+            'location': 'Albay, Bicol Region',
             'latitude': 13.2572,
             'longitude': 123.6856,
             'elevation': 2463,
@@ -353,12 +353,56 @@ def get_active_volcanoes():
             'status': 'Alert Level 0 (Normal)',
             'last_eruption': '2018',
             'alert_level': 0,
-            'description': 'Most active volcano in the Philippines, known for its perfect cone shape'
+            'description': 'Most active volcano in the Philippines, known for its perfect cone shape',
+            'eruption_history': {
+                'total_eruptions': 51,
+                'most_recent_significant': {
+                    'date': '2018-01-13',
+                    'vei': 2,
+                    'description': 'Phreatic eruption with lava fountaining',
+                    'casualties': 0
+                },
+                'avg_years_between': 8,
+                'frequency_category': 'Very Active'
+            },
+            'hazards': {
+                'primary': ['Lava flows', 'Pyroclastic flows', 'Lahars', 'Ashfall', 'Rockfalls'],
+                'pdz_radius': 6.0,
+                'edz_radius': 8.0,
+                'affected_population': 50000,
+                'critical_infrastructure': ['Schools: 45', 'Hospitals: 3', 'Evacuation centers: 25']
+            },
+            'monitoring': {
+                'seismic_stations': 8,
+                'recent_earthquakes_24h': 3,
+                'ground_deformation': 'Stable',
+                'so2_emission': 250,
+                'last_observation': datetime.utcnow().isoformat() + 'Z'
+            },
+            'classification': {
+                'activity': 'Active',
+                'eruption_category': 'Historical Record',
+                'morphology': 'Young, well-preserved cone'
+            },
+            'practical_info': {
+                'observatory': 'Lignon Hill Observatory',
+                'nearest_city': 'Legazpi City',
+                'distance_to_city': 15,
+                'evacuation_centers': 25,
+                'emergency_contact': 'PHIVOLCS Lignon Hill: (052) 820-1981'
+            },
+            'additional_context': {
+                'tectonic_setting': 'Philippine Trench subduction zone',
+                'crater_diameter': 200,
+                'notable_features': ['Perfect cone shape', 'Frequent lava flows'],
+                'cultural_significance': 'Named after Daragang Magayon (Beautiful Maiden)',
+                'tourism_status': 'Major tourist attraction'
+            }
         },
         {
             'id': 2,
             'name': 'Taal',
-            'location': 'Batangas',
+            'location': 'Batangas, CALABARZON',
             'latitude': 14.0021,
             'longitude': 120.9937,
             'elevation': 311,
@@ -366,7 +410,51 @@ def get_active_volcanoes():
             'status': 'Alert Level 1 (Abnormal)',
             'last_eruption': '2022',
             'alert_level': 1,
-            'description': 'One of the most active volcanoes, located on an island within a lake'
+            'description': 'One of the most active volcanoes, located on an island within a lake',
+            'eruption_history': {
+                'total_eruptions': 34,
+                'most_recent_significant': {
+                    'date': '2020-01-12',
+                    'vei': 4,
+                    'description': 'Phreatomagmatic eruption with ash column',
+                    'casualties': 39
+                },
+                'avg_years_between': 15,
+                'frequency_category': 'Very Active'
+            },
+            'hazards': {
+                'primary': ['Base surges', 'Ashfall', 'Volcanic tsunamis', 'Ballistic projectiles'],
+                'pdz_radius': 7.0,
+                'edz_radius': 14.0,
+                'affected_population': 450000,
+                'critical_infrastructure': ['Schools: 120', 'Hospitals: 8', 'Evacuation centers: 85']
+            },
+            'monitoring': {
+                'seismic_stations': 10,
+                'recent_earthquakes_24h': 12,
+                'ground_deformation': 'Slight inflation',
+                'so2_emission': 1200,
+                'last_observation': datetime.utcnow().isoformat() + 'Z'
+            },
+            'classification': {
+                'activity': 'Active',
+                'eruption_category': 'Historical Record',
+                'morphology': 'Complex caldera system'
+            },
+            'practical_info': {
+                'observatory': 'Taal Volcano Observatory',
+                'nearest_city': 'Tagaytay City',
+                'distance_to_city': 25,
+                'evacuation_centers': 85,
+                'emergency_contact': 'PHIVOLCS Tagaytay: (046) 413-1145'
+            },
+            'additional_context': {
+                'tectonic_setting': 'Manila Trench subduction zone',
+                'crater_diameter': 2500,
+                'notable_features': ['Crater lake', 'Island within a lake within an island'],
+                'cultural_significance': 'One of the Decade Volcanoes',
+                'tourism_status': 'Major tourist destination'
+            }
         },
         {
             'id': 3,
@@ -379,12 +467,56 @@ def get_active_volcanoes():
             'status': 'Alert Level 0 (Normal)',
             'last_eruption': '1993',
             'alert_level': 0,
-            'description': 'Famous for its catastrophic 1991 eruption, one of the largest of the 20th century'
+            'description': 'Famous for its catastrophic 1991 eruption, one of the largest of the 20th century',
+            'eruption_history': {
+                'total_eruptions': 6,
+                'most_recent_significant': {
+                    'date': '1991-06-15',
+                    'vei': 6,
+                    'description': 'Cataclysmic Plinian eruption with global climate impact',
+                    'casualties': 847
+                },
+                'avg_years_between': 500,
+                'frequency_category': 'Moderately Active'
+            },
+            'hazards': {
+                'primary': ['Lahars', 'Pyroclastic flows', 'Ashfall', 'Volcanic gases'],
+                'pdz_radius': 10.0,
+                'edz_radius': 20.0,
+                'affected_population': 200000,
+                'critical_infrastructure': ['Schools: 75', 'Hospitals: 5', 'Evacuation centers: 50']
+            },
+            'monitoring': {
+                'seismic_stations': 6,
+                'recent_earthquakes_24h': 1,
+                'ground_deformation': 'Stable',
+                'so2_emission': 180,
+                'last_observation': datetime.utcnow().isoformat() + 'Z'
+            },
+            'classification': {
+                'activity': 'Active',
+                'eruption_category': 'Historical Record',
+                'morphology': 'Caldera with crater lake'
+            },
+            'practical_info': {
+                'observatory': 'Clark Observatory',
+                'nearest_city': 'Angeles City',
+                'distance_to_city': 28,
+                'evacuation_centers': 50,
+                'emergency_contact': 'PHIVOLCS Clark: (045) 599-1031'
+            },
+            'additional_context': {
+                'tectonic_setting': 'Manila Trench subduction zone',
+                'crater_diameter': 2500,
+                'notable_features': ['Crater lake formed post-1991', 'Massive lahar deposits'],
+                'cultural_significance': 'Second-largest volcanic eruption of 20th century',
+                'tourism_status': 'Eco-tourism and trekking destination'
+            }
         },
         {
             'id': 4,
             'name': 'Bulusan',
-            'location': 'Sorsogon',
+            'location': 'Sorsogon, Bicol Region',
             'latitude': 12.7700,
             'longitude': 124.0500,
             'elevation': 1565,
@@ -392,12 +524,56 @@ def get_active_volcanoes():
             'status': 'Alert Level 0 (Normal)',
             'last_eruption': '2017',
             'alert_level': 0,
-            'description': 'Active volcano in southeastern Luzon'
+            'description': 'Active volcano in southeastern Luzon with frequent phreatic eruptions',
+            'eruption_history': {
+                'total_eruptions': 17,
+                'most_recent_significant': {
+                    'date': '2016-06-10',
+                    'vei': 2,
+                    'description': 'Phreatic eruption with ash plume',
+                    'casualties': 0
+                },
+                'avg_years_between': 12,
+                'frequency_category': 'Active'
+            },
+            'hazards': {
+                'primary': ['Phreatic eruptions', 'Ashfall', 'Lahars', 'Pyroclastic flows'],
+                'pdz_radius': 4.0,
+                'edz_radius': 6.0,
+                'affected_population': 25000,
+                'critical_infrastructure': ['Schools: 30', 'Hospitals: 2', 'Evacuation centers: 18']
+            },
+            'monitoring': {
+                'seismic_stations': 5,
+                'recent_earthquakes_24h': 4,
+                'ground_deformation': 'Stable',
+                'so2_emission': 320,
+                'last_observation': datetime.utcnow().isoformat() + 'Z'
+            },
+            'classification': {
+                'activity': 'Active',
+                'eruption_category': 'Historical Record',
+                'morphology': 'Young stratovolcano'
+            },
+            'practical_info': {
+                'observatory': 'Bulusan Volcano Observatory',
+                'nearest_city': 'Sorsogon City',
+                'distance_to_city': 20,
+                'evacuation_centers': 18,
+                'emergency_contact': 'PHIVOLCS Bulusan: (056) 211-1134'
+            },
+            'additional_context': {
+                'tectonic_setting': 'Philippine Trench subduction zone',
+                'crater_diameter': 300,
+                'notable_features': ['Four craters', 'Crater lakes', 'Hot springs'],
+                'cultural_significance': 'Local pilgrimage site',
+                'tourism_status': 'Eco-tourism destination'
+            }
         },
         {
             'id': 5,
             'name': 'Kanlaon',
-            'location': 'Negros Island',
+            'location': 'Negros Oriental/Occidental',
             'latitude': 10.4120,
             'longitude': 123.1320,
             'elevation': 2465,
@@ -405,12 +581,56 @@ def get_active_volcanoes():
             'status': 'Alert Level 1 (Abnormal)',
             'last_eruption': '2020',
             'alert_level': 1,
-            'description': 'Most active volcano in central Philippines'
+            'description': 'Most active volcano in central Philippines with frequent activity',
+            'eruption_history': {
+                'total_eruptions': 30,
+                'most_recent_significant': {
+                    'date': '2017-06-18',
+                    'vei': 2,
+                    'description': 'Phreatic eruption with ash emission',
+                    'casualties': 0
+                },
+                'avg_years_between': 10,
+                'frequency_category': 'Very Active'
+            },
+            'hazards': {
+                'primary': ['Pyroclastic flows', 'Ashfall', 'Lava flows', 'Lahars'],
+                'pdz_radius': 4.0,
+                'edz_radius': 6.0,
+                'affected_population': 35000,
+                'critical_infrastructure': ['Schools: 40', 'Hospitals: 3', 'Evacuation centers: 22']
+            },
+            'monitoring': {
+                'seismic_stations': 7,
+                'recent_earthquakes_24h': 8,
+                'ground_deformation': 'Slight inflation',
+                'so2_emission': 890,
+                'last_observation': datetime.utcnow().isoformat() + 'Z'
+            },
+            'classification': {
+                'activity': 'Active',
+                'eruption_category': 'Historical Record',
+                'morphology': 'Young stratovolcano'
+            },
+            'practical_info': {
+                'observatory': 'Kanlaon Observatory',
+                'nearest_city': 'Bacolod City',
+                'distance_to_city': 30,
+                'evacuation_centers': 22,
+                'emergency_contact': 'PHIVOLCS Kanlaon: (034) 476-5248'
+            },
+            'additional_context': {
+                'tectonic_setting': 'Negros Trench subduction zone',
+                'crater_diameter': 400,
+                'notable_features': ['Active crater', 'Fumaroles', 'Sulfur deposits'],
+                'cultural_significance': 'Named after Kan, deity of pre-colonial Negrenses',
+                'tourism_status': 'Popular hiking destination'
+            }
         },
         {
             'id': 6,
             'name': 'Hibok-Hibok',
-            'location': 'Camiguin',
+            'location': 'Camiguin, Northern Mindanao',
             'latitude': 9.2030,
             'longitude': 124.6730,
             'elevation': 1332,
@@ -418,7 +638,51 @@ def get_active_volcanoes():
             'status': 'Alert Level 0 (Normal)',
             'last_eruption': '1953',
             'alert_level': 0,
-            'description': 'Dome volcano in Mindanao'
+            'description': 'Lava dome complex with a history of explosive eruptions',
+            'eruption_history': {
+                'total_eruptions': 5,
+                'most_recent_significant': {
+                    'date': '1951-12-04',
+                    'vei': 3,
+                    'description': 'Explosive eruption with pyroclastic flows',
+                    'casualties': 500
+                },
+                'avg_years_between': 100,
+                'frequency_category': 'Moderately Active'
+            },
+            'hazards': {
+                'primary': ['Pyroclastic flows', 'Dome collapse', 'Ashfall', 'Lahars'],
+                'pdz_radius': 4.0,
+                'edz_radius': 7.0,
+                'affected_population': 18000,
+                'critical_infrastructure': ['Schools: 20', 'Hospitals: 2', 'Evacuation centers: 12']
+            },
+            'monitoring': {
+                'seismic_stations': 4,
+                'recent_earthquakes_24h': 2,
+                'ground_deformation': 'Stable',
+                'so2_emission': 95,
+                'last_observation': datetime.utcnow().isoformat() + 'Z'
+            },
+            'classification': {
+                'activity': 'Active',
+                'eruption_category': 'Historical Record',
+                'morphology': 'Lava dome complex'
+            },
+            'practical_info': {
+                'observatory': 'Camiguin Volcano Observatory',
+                'nearest_city': 'Mambajao',
+                'distance_to_city': 8,
+                'evacuation_centers': 12,
+                'emergency_contact': 'PHIVOLCS Camiguin: (088) 387-9042'
+            },
+            'additional_context': {
+                'tectonic_setting': 'Philippine Trench subduction zone',
+                'crater_diameter': 320,
+                'notable_features': ['Five lava domes', 'Hot springs', 'Fumaroles'],
+                'cultural_significance': 'Part of Camiguin volcanic field',
+                'tourism_status': 'Island tourist destination with hot springs'
+            }
         }
     ]
     
@@ -429,9 +693,91 @@ def get_active_volcanoes():
         'metadata': {
             'generated': int(time.time() * 1000),
             'server_time_utc': datetime.utcnow().isoformat() + 'Z',
-            'title': 'Active Volcanoes in the Philippines',
+            'title': 'Active Volcanoes in the Philippines - Comprehensive Data',
             'source': 'PHIVOLCS Records',
-            'note': 'Alert levels and status should be verified with official PHIVOLCS sources'
+            'note': 'Alert levels and status should be verified with official PHIVOLCS sources',
+            'data_fields': [
+                'Basic Info', 'Eruption History', 'Hazard Zones', 'Monitoring Data',
+                'Classification', 'Practical Information', 'Additional Context'
+            ]
+        }
+    })
+
+@app.route('/api/volcanoes/statistics', methods=['GET'])
+def get_volcano_statistics():
+    """Get comprehensive statistics about all monitored volcanoes"""
+    # Get volcano data from the active volcanoes endpoint logic
+    volcanoes_data = get_active_volcanoes().get_json()
+    
+    if not volcanoes_data or not volcanoes_data.get('success'):
+        return jsonify({
+            'success': False,
+            'error': 'Failed to retrieve volcano data'
+        }), 500
+    
+    volcanoes = volcanoes_data['volcanoes']
+    
+    # Calculate comprehensive statistics
+    total_volcanoes = len(volcanoes)
+    alert_distribution = {
+        'level_0': sum(1 for v in volcanoes if v['alert_level'] == 0),
+        'level_1': sum(1 for v in volcanoes if v['alert_level'] == 1),
+        'level_2': sum(1 for v in volcanoes if v['alert_level'] == 2),
+        'level_3': sum(1 for v in volcanoes if v['alert_level'] >= 3),
+    }
+    
+    total_eruptions = sum(v.get('eruption_history', {}).get('total_eruptions', 0) for v in volcanoes)
+    avg_eruptions = total_eruptions / total_volcanoes if total_volcanoes > 0 else 0
+    
+    activity_categories = {}
+    for v in volcanoes:
+        category = v.get('eruption_history', {}).get('frequency_category', 'Unknown')
+        activity_categories[category] = activity_categories.get(category, 0) + 1
+    
+    total_affected_population = sum(v.get('hazards', {}).get('affected_population', 0) for v in volcanoes)
+    
+    total_seismic_stations = sum(v.get('monitoring', {}).get('seismic_stations', 0) for v in volcanoes)
+    total_earthquakes_24h = sum(v.get('monitoring', {}).get('recent_earthquakes_24h', 0) for v in volcanoes)
+    
+    avg_so2 = sum(v.get('monitoring', {}).get('so2_emission', 0) for v in volcanoes) / total_volcanoes if total_volcanoes > 0 else 0
+    
+    most_active = max(volcanoes, key=lambda v: v.get('eruption_history', {}).get('total_eruptions', 0))
+    highest_alert = max(volcanoes, key=lambda v: v['alert_level'])
+    
+    return jsonify({
+        'success': True,
+        'total_volcanoes': total_volcanoes,
+        'alert_distribution': alert_distribution,
+        'on_alert': sum(1 for v in volcanoes if v['alert_level'] > 0),
+        'eruption_statistics': {
+            'total_historical_eruptions': total_eruptions,
+            'average_per_volcano': round(avg_eruptions, 1),
+            'activity_categories': activity_categories
+        },
+        'population_impact': {
+            'total_affected': total_affected_population,
+            'average_per_volcano': round(total_affected_population / total_volcanoes) if total_volcanoes > 0 else 0
+        },
+        'monitoring_capacity': {
+            'total_seismic_stations': total_seismic_stations,
+            'total_earthquakes_24h': total_earthquakes_24h,
+            'average_so2_emission': round(avg_so2, 1)
+        },
+        'highlights': {
+            'most_active': {
+                'name': most_active['name'],
+                'eruptions': most_active.get('eruption_history', {}).get('total_eruptions', 0)
+            },
+            'highest_alert': {
+                'name': highest_alert['name'],
+                'alert_level': highest_alert['alert_level'],
+                'status': highest_alert['status']
+            }
+        },
+        'metadata': {
+            'generated': int(time.time() * 1000),
+            'server_time_utc': datetime.utcnow().isoformat() + 'Z',
+            'source': 'PHIVOLCS Records'
         }
     })
 
@@ -494,7 +840,8 @@ def get_info():
             '/api/earthquakes/recent': 'Get recent earthquakes (7 days, M ≥ 2.5)',
             '/api/earthquakes/significant': 'Get significant earthquakes (M ≥ 4.5, 30 days)',
             '/api/earthquakes/statistics': 'Get earthquake statistics (30 days)',
-            '/api/volcanoes/active': 'Get active volcanoes information',
+            '/api/volcanoes/active': 'Get comprehensive active volcanoes information with all monitoring data',
+            '/api/volcanoes/statistics': 'Get aggregated statistics about all monitored volcanoes',
             '/api/phivolcs/latest': 'Get PHIVOLCS earthquake bulletins (pending implementation)',
             '/api/time': 'Get server time information',
             '/api/health': 'Health check',

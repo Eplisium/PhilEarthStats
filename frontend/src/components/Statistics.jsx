@@ -1,39 +1,29 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { TrendingUp, Activity, Layers } from 'lucide-react';
 import useCountUp from '../hooks/useCountUp';
 import useTabStore from '../store/tabStore';
+import useDataStore from '../store/useDataStore';
+import useStatisticsStore from '../store/useStatisticsStore';
 import EarthquakeCalendar from './EarthquakeCalendar';
 
-const Statistics = ({ statistics }) => {
-  const [chartKey, setChartKey] = useState(0);
-  const [showCharts, setShowCharts] = useState(false);
-  const [animateCards, setAnimateCards] = useState(false);
-  const { activeTab, tabChangeCount } = useTabStore();
+const Statistics = () => {
+  // Use Zustand stores with optimized selectors
+  const statistics = useDataStore(state => state.statistics);
+  const activeTab = useTabStore(state => state.activeTab);
+  const tabChangeCount = useTabStore(state => state.tabChangeCount);
+  const chartKey = useStatisticsStore(state => state.chartKey);
+  const showCharts = useStatisticsStore(state => state.showCharts);
+  const animateCards = useStatisticsStore(state => state.animateCards);
+  const triggerAnimations = useStatisticsStore(state => state.triggerAnimations);
 
   // Trigger chart re-animation when Statistics tab becomes active
   useEffect(() => {
     // Only animate if we're on the statistics tab
     if (activeTab === 'statistics') {
-      setShowCharts(false);
-      setAnimateCards(false);
-      
-      // Stagger animations: cards first, then charts
-      const cardTimer = setTimeout(() => {
-        setAnimateCards(true);
-      }, 100);
-      
-      const chartTimer = setTimeout(() => {
-        setChartKey(prev => prev + 1);
-        setShowCharts(true);
-      }, 800);
-      
-      return () => {
-        clearTimeout(cardTimer);
-        clearTimeout(chartTimer);
-      };
+      return triggerAnimations();
     }
-  }, [activeTab, tabChangeCount]);
+  }, [activeTab, tabChangeCount, triggerAnimations]);
 
   // Animated numbers
   const totalEvents = useCountUp(statistics.total_earthquakes, 1000, 0);
@@ -46,37 +36,42 @@ const Statistics = ({ statistics }) => {
   const detailMaxDepth = useCountUp(statistics.depth_stats.max, 1000, 1);
   const detailAvgDepth = useCountUp(statistics.depth_stats.average, 1000, 1);
   const detailMinDepth = useCountUp(statistics.depth_stats.min, 1000, 1);
-  const COLORS = {
-    micro: '#6b7280',
-    minor: '#059669',
-    light: '#7c3aed',
-    moderate: '#ca8a04',
-    strong: '#ea580c',
-    major: '#dc2626',
-    great: '#7c2d12'
-  };
+  // Memoize chart data to prevent unnecessary recalculations
+  const { magnitudeData, depthData } = useMemo(() => {
+    const COLORS = {
+      micro: '#6b7280',
+      minor: '#059669',
+      light: '#7c3aed',
+      moderate: '#ca8a04',
+      strong: '#ea580c',
+      major: '#dc2626',
+      great: '#7c2d12'
+    };
 
-  const DEPTH_COLORS = {
-    shallow: '#fbbf24',
-    intermediate: '#f97316',
-    deep: '#dc2626'
-  };
+    const DEPTH_COLORS = {
+      shallow: '#fbbf24',
+      intermediate: '#f97316',
+      deep: '#dc2626'
+    };
 
-  const magnitudeData = [
-    { name: 'Micro (<3.0)', value: statistics.magnitude_stats.distribution.micro, color: COLORS.micro },
-    { name: 'Minor (3.0-3.9)', value: statistics.magnitude_stats.distribution.minor, color: COLORS.minor },
-    { name: 'Light (4.0-4.9)', value: statistics.magnitude_stats.distribution.light, color: COLORS.light },
-    { name: 'Moderate (5.0-5.9)', value: statistics.magnitude_stats.distribution.moderate, color: COLORS.moderate },
-    { name: 'Strong (6.0-6.9)', value: statistics.magnitude_stats.distribution.strong, color: COLORS.strong },
-    { name: 'Major (7.0-7.9)', value: statistics.magnitude_stats.distribution.major, color: COLORS.major },
-    { name: 'Great (≥8.0)', value: statistics.magnitude_stats.distribution.great, color: COLORS.great }
-  ].filter(item => item.value > 0);
+    const magnitudeData = [
+      { name: 'Micro (<3.0)', value: statistics.magnitude_stats.distribution.micro, color: COLORS.micro },
+      { name: 'Minor (3.0-3.9)', value: statistics.magnitude_stats.distribution.minor, color: COLORS.minor },
+      { name: 'Light (4.0-4.9)', value: statistics.magnitude_stats.distribution.light, color: COLORS.light },
+      { name: 'Moderate (5.0-5.9)', value: statistics.magnitude_stats.distribution.moderate, color: COLORS.moderate },
+      { name: 'Strong (6.0-6.9)', value: statistics.magnitude_stats.distribution.strong, color: COLORS.strong },
+      { name: 'Major (7.0-7.9)', value: statistics.magnitude_stats.distribution.major, color: COLORS.major },
+      { name: 'Great (≥8.0)', value: statistics.magnitude_stats.distribution.great, color: COLORS.great }
+    ].filter(item => item.value > 0);
 
-  const depthData = [
-    { name: 'Shallow (<70 km)', value: statistics.depth_stats.distribution.shallow, color: DEPTH_COLORS.shallow },
-    { name: 'Intermediate (70-300 km)', value: statistics.depth_stats.distribution.intermediate, color: DEPTH_COLORS.intermediate },
-    { name: 'Deep (≥300 km)', value: statistics.depth_stats.distribution.deep, color: DEPTH_COLORS.deep }
-  ].filter(item => item.value > 0);
+    const depthData = [
+      { name: 'Shallow (<70 km)', value: statistics.depth_stats.distribution.shallow, color: DEPTH_COLORS.shallow },
+      { name: 'Intermediate (70-300 km)', value: statistics.depth_stats.distribution.intermediate, color: DEPTH_COLORS.intermediate },
+      { name: 'Deep (≥300 km)', value: statistics.depth_stats.distribution.deep, color: DEPTH_COLORS.deep }
+    ].filter(item => item.value > 0);
+
+    return { magnitudeData, depthData };
+  }, [statistics]);
 
   return (
     <div className="space-y-6">
@@ -175,9 +170,9 @@ const Statistics = ({ statistics }) => {
                   name="Count"
                   isAnimationActive={true}
                   isUpdateAnimationActive={true}
-                  animationBegin={0}
-                  animationDuration={1500}
-                  animationEasing="ease-in-out"
+                  animationBegin={100}
+                  animationDuration={2000}
+                  animationEasing="ease-out"
                   radius={[8, 8, 0, 0]}
                   maxBarSize={80}
                 >
@@ -230,19 +225,21 @@ const Statistics = ({ statistics }) => {
                   cy="50%"
                   labelLine={{
                     stroke: '#9ca3af',
-                    strokeWidth: 1.5
+                    strokeWidth: 1.5,
+                    animationDuration: 1500
                   }}
                   label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
                   outerRadius={100}
-                  innerRadius={0}
+                  innerRadius={40}
                   fill="#8884d8"
                   dataKey="value"
                   isAnimationActive={true}
-                  isUpdateAnimationActive={true}
                   animationBegin={200}
-                  animationDuration={1800}
+                  animationDuration={1500}
                   animationEasing="ease-in-out"
-                  paddingAngle={3}
+                  paddingAngle={4}
+                  startAngle={0}
+                  endAngle={360}
                 >
                   {depthData.map((entry, index) => (
                     <Cell 

@@ -1,10 +1,17 @@
-import React, { useState } from 'react';
+import React, { useMemo } from 'react';
 import { format } from 'date-fns';
 import { ExternalLink, AlertTriangle, MapPin } from 'lucide-react';
+import useDataStore from '../store/useDataStore';
+import useEarthquakeListStore from '../store/useEarthquakeListStore';
 
-const EarthquakeList = ({ earthquakes, significantEarthquakes }) => {
-  const [showSignificant, setShowSignificant] = useState(false);
-  const [sortBy, setSortBy] = useState('time');
+const EarthquakeList = () => {
+  // Use Zustand stores with optimized selectors
+  const earthquakes = useDataStore(state => state.earthquakes);
+  const significantEarthquakes = useDataStore(state => state.significantEarthquakes);
+  const showSignificant = useEarthquakeListStore(state => state.showSignificant);
+  const setShowSignificant = useEarthquakeListStore(state => state.setShowSignificant);
+  const sortBy = useEarthquakeListStore(state => state.sortBy);
+  const setSortBy = useEarthquakeListStore(state => state.setSortBy);
 
   const getMagnitudeColor = (magnitude) => {
     if (magnitude >= 7) return 'bg-red-100 text-red-800 border-red-300';
@@ -14,8 +21,11 @@ const EarthquakeList = ({ earthquakes, significantEarthquakes }) => {
     return 'bg-gray-100 text-gray-800 border-gray-300';
   };
 
-  const sortEarthquakes = (data) => {
-    const sorted = [...data];
+  // Memoize sorted data to prevent unnecessary recalculations
+  const sortedData = useMemo(() => {
+    const displayData = showSignificant ? significantEarthquakes : earthquakes;
+    const sorted = [...displayData];
+    
     if (sortBy === 'time') {
       return sorted.sort((a, b) => b.time - a.time);
     } else if (sortBy === 'magnitude') {
@@ -24,10 +34,7 @@ const EarthquakeList = ({ earthquakes, significantEarthquakes }) => {
       return sorted.sort((a, b) => a.depth - b.depth);
     }
     return sorted;
-  };
-
-  const displayData = showSignificant ? significantEarthquakes : earthquakes;
-  const sortedData = sortEarthquakes(displayData);
+  }, [earthquakes, significantEarthquakes, showSignificant, sortBy]);
 
   return (
     <div className="space-y-4">

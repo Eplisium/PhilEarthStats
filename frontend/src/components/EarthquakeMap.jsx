@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Circle } from 'react-leaflet';
 import L from 'leaflet';
 import { format } from 'date-fns';
+import useDataStore from '../store/useDataStore';
 
 // Fix for default marker icons in React-Leaflet
 delete L.Icon.Default.prototype._getIconUrl;
@@ -11,7 +12,10 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
 });
 
-const EarthquakeMap = ({ earthquakes, volcanoes }) => {
+const EarthquakeMap = () => {
+  // Use Zustand store with optimized selectors
+  const earthquakes = useDataStore(state => state.earthquakes);
+  const volcanoes = useDataStore(state => state.volcanoes);
   const philippinesCenter = [12.8797, 121.7740];
 
   const getMagnitudeColor = (magnitude) => {
