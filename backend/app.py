@@ -8,6 +8,7 @@ import pytz
 import os
 from dotenv import load_dotenv
 from database import db, DatabaseService, EarthquakeEvent, YearStatistics
+from ai_config import get_available_models, get_model_config, validate_model, DEFAULT_MODEL, FALLBACK_MODELS
 
 # Load environment variables
 load_dotenv()
@@ -847,6 +848,7 @@ def get_info():
             '/api/health': 'Health check',
             '/api/info': 'API information',
             '/api/ai/analyze': 'Get AI-powered analysis of earthquake data (POST)',
+            '/api/ai/models': 'Get available AI models for analysis',
             '/api/history/worst-years': 'Get worst earthquake years ranked by severity',
             '/api/history/year/<year>': 'Get earthquake data for a specific year',
             '/api/calendar': 'Get calendar view of earthquakes by date',
@@ -860,6 +862,26 @@ def get_info():
         'cache_timeout': f'{CACHE_TIMEOUT} seconds'
     })
 
+@app.route('/api/ai/models', methods=['GET'])
+def get_ai_models():
+    """Get available AI models for earthquake analysis"""
+    try:
+        models = get_available_models()
+        return jsonify({
+            'success': True,
+            'models': models,
+            'default_model': DEFAULT_MODEL,
+            'metadata': {
+                'generated': int(time.time() * 1000),
+                'server_time_utc': datetime.utcnow().isoformat() + 'Z'
+            }
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Failed to fetch AI models: {str(e)}'
+        }), 500
+
 @app.route('/api/ai/analyze', methods=['POST'])
 def analyze_with_ai():
     """Use OpenRouter LLM to analyze earthquake data and provide insights"""
@@ -871,6 +893,14 @@ def analyze_with_ai():
                 'success': False,
                 'error': 'OpenRouter API key not configured. Please set OPENROUTER_API_KEY in your .env file.'
             }), 400
+        
+        # Get selected model from request body
+        request_data = request.get_json() or {}
+        selected_model = request_data.get('model', DEFAULT_MODEL)
+        
+        # Validate selected model
+        if not validate_model(selected_model):
+            selected_model = DEFAULT_MODEL
         
         # Get all earthquake data
         def fetch_all_data():
@@ -966,15 +996,36 @@ Provide a detailed analysis covering:
 5. Actionable recommendations for residents and authorities
 6. Any notable events or sequences (aftershocks, swarms, etc.)
 
-Be specific, professional, and provide context. Format your response with clear sections and use markdown formatting."""
+Be specific, professional, and provide context.
+
+**FORMATTING REQUIREMENTS - CRITICAL**:
+- Use proper markdown formatting throughout your response
+- Start main sections with ## (h2 headings)
+- Use ### (h3 headings) for subsections
+- Use **bold** for emphasis on key terms and important information
+- Use bullet points (- ) for lists, NOT asterisks or other symbols
+- Use numbered lists (1. 2. 3.) for sequential information
+- Ensure blank lines between paragraphs and sections
+- Use single backticks `like this` for inline technical terms, magnitude values (e.g., `M 5.2`), coordinates
+- NEVER use code blocks (```) for magnitude values or short technical terms - only use single backticks `
+- Code blocks (```) should ONLY be used for multi-line code or data, not for inline values
+- Keep paragraphs concise (2-4 sentences max)
+- Use > for important warnings or critical information as blockquotes
+- Do NOT use unicode symbols like •, ×, ÷ - use markdown formatting instead
+- Ensure all lists have proper spacing and indentation
+- Start your response immediately with content, no meta-text like "Here is my analysis:"
+- Write in a clear, professional tone suitable for public safety information
+
+Your response will be rendered with ReactMarkdown, so proper markdown syntax is essential for readability."""
+        
+        # Get model configuration
+        model_config = get_model_config(selected_model)
         
         # Call OpenRouter API using requests
-        # Try multiple models in case one is unavailable
-        models_to_try = [
-            "x-ai/grok-4-fast",  # Most reliable
-            "openai/gpt-4o",  # Good alternative
-            "google/gemini-pro-1.5",  # Another fallback
-        ]
+        # Try selected model first, then fallback models
+        models_to_try = [selected_model]
+        # Add fallback models that aren't the selected model
+        models_to_try.extend([m for m in FALLBACK_MODELS if m != selected_model])
         
         analysis = None
         last_error = None
@@ -999,8 +1050,8 @@ Be specific, professional, and provide context. Format your response with clear 
                                 "content": prompt
                             }
                         ],
-                        "temperature": 0.7,
-                        "max_tokens": 3000
+                        "temperature": model_config.get('temperature', 0.7),
+                        "max_tokens": model_config.get('max_tokens', 3000)
                     },
                     timeout=60
                 )

@@ -1,10 +1,31 @@
-import React from 'react';
-import { Brain, Loader, AlertCircle, TrendingUp, Activity, Trash2 } from 'lucide-react';
+import React, { useEffect } from 'react';
+import { Brain, Loader, AlertCircle, TrendingUp, Activity, Trash2, Sparkles } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import remarkBreaks from 'remark-breaks';
 import useAIAnalysisStore from '../store/aiAnalysisStore';
 
 const AIAnalysis = () => {
-  const { analysis, loading, error, lastGenerated, generateAnalysis, clearAnalysis } = useAIAnalysisStore();
+  const { 
+    analysis, 
+    loading, 
+    error, 
+    lastGenerated, 
+    availableModels, 
+    selectedModel, 
+    loadingModels,
+    generateAnalysis, 
+    clearAnalysis,
+    fetchAvailableModels,
+    setSelectedModel
+  } = useAIAnalysisStore();
+
+  // Fetch available models on component mount
+  useEffect(() => {
+    if (availableModels.length === 0) {
+      fetchAvailableModels();
+    }
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -20,6 +41,33 @@ const AIAnalysis = () => {
               Get comprehensive insights from an AI seismologist analyzing the last 30 days of earthquake data 
               for the Philippines region. The AI will assess patterns, risks, and provide actionable recommendations.
             </p>
+            
+            {/* Model Selection */}
+            <div className="mb-4">
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                <Sparkles className="inline h-4 w-4 mr-1" />
+                AI Model Selection
+              </label>
+              <select
+                value={selectedModel || ''}
+                onChange={(e) => setSelectedModel(e.target.value)}
+                disabled={loading || loadingModels}
+                className="w-full md:w-96 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 disabled:opacity-50 disabled:cursor-not-allowed bg-white text-gray-900"
+              >
+                {loadingModels ? (
+                  <option>Loading models...</option>
+                ) : (
+                  availableModels.map((model) => (
+                    <option key={model.id} value={model.id}>
+                      {model.name} - {model.description}
+                    </option>
+                  ))
+                )}
+              </select>
+              <p className="text-xs text-gray-600 mt-1">
+                Select the AI model to use for analysis. Different models may provide varying insights.
+              </p>
+            </div>
             <div className="flex flex-wrap gap-2 text-sm text-gray-600">
               <span className="flex items-center gap-1 bg-white px-3 py-1 rounded-full border border-gray-200">
                 <Activity className="h-4 w-4" />
@@ -134,22 +182,128 @@ const AIAnalysis = () => {
                 AI Seismologist Analysis
               </h3>
               <p className="text-purple-100 text-sm mt-1">
-                Generated using {analysis.metadata.model}
+                Generated using: {availableModels.find(m => m.id === analysis.metadata.model)?.name || analysis.metadata.model}
               </p>
             </div>
             <div className="p-6">
-              <div className="prose prose-blue max-w-none">
+              <div className="prose prose-blue max-w-none ai-analysis-content">
                 <ReactMarkdown 
+                  remarkPlugins={[remarkGfm, remarkBreaks]}
                   components={{
-                    h1: ({node, ...props}) => <h1 className="text-2xl font-bold text-gray-900 mt-6 mb-4" {...props} />,
-                    h2: ({node, ...props}) => <h2 className="text-xl font-bold text-gray-800 mt-5 mb-3" {...props} />,
-                    h3: ({node, ...props}) => <h3 className="text-lg font-semibold text-gray-800 mt-4 mb-2" {...props} />,
-                    p: ({node, ...props}) => <p className="text-gray-700 mb-3 leading-relaxed" {...props} />,
-                    ul: ({node, ...props}) => <ul className="list-disc list-inside space-y-1 mb-3 text-gray-700" {...props} />,
-                    ol: ({node, ...props}) => <ol className="list-decimal list-inside space-y-1 mb-3 text-gray-700" {...props} />,
-                    li: ({node, ...props}) => <li className="ml-2" {...props} />,
-                    strong: ({node, ...props}) => <strong className="font-semibold text-gray-900" {...props} />,
-                    code: ({node, ...props}) => <code className="bg-gray-100 px-1.5 py-0.5 rounded text-sm font-mono" {...props} />,
+                    // Headings with improved styling
+                    h1: ({node, ...props}) => (
+                      <h1 className="text-3xl font-bold text-gray-900 mt-8 mb-4 pb-2 border-b-2 border-purple-200" {...props} />
+                    ),
+                    h2: ({node, ...props}) => (
+                      <h2 className="text-2xl font-bold text-gray-800 mt-6 mb-3 pb-1 border-b border-gray-200" {...props} />
+                    ),
+                    h3: ({node, ...props}) => (
+                      <h3 className="text-xl font-semibold text-gray-800 mt-5 mb-2" {...props} />
+                    ),
+                    h4: ({node, ...props}) => (
+                      <h4 className="text-lg font-semibold text-gray-800 mt-4 mb-2" {...props} />
+                    ),
+                    h5: ({node, ...props}) => (
+                      <h5 className="text-base font-semibold text-gray-700 mt-3 mb-2" {...props} />
+                    ),
+                    h6: ({node, ...props}) => (
+                      <h6 className="text-sm font-semibold text-gray-700 mt-3 mb-2" {...props} />
+                    ),
+                    
+                    // Paragraphs with proper spacing
+                    p: ({node, ...props}) => (
+                      <p className="text-gray-700 mb-4 leading-relaxed text-base" {...props} />
+                    ),
+                    
+                    // Lists with better spacing and styling
+                    ul: ({node, ...props}) => (
+                      <ul className="list-disc list-outside ml-6 space-y-2 mb-4 text-gray-700" {...props} />
+                    ),
+                    ol: ({node, ...props}) => (
+                      <ol className="list-decimal list-outside ml-6 space-y-2 mb-4 text-gray-700" {...props} />
+                    ),
+                    li: ({node, children, ...props}) => (
+                      <li className="pl-2 leading-relaxed" {...props}>
+                        <span className="inline-block">{children}</span>
+                      </li>
+                    ),
+                    
+                    // Text formatting
+                    strong: ({node, ...props}) => (
+                      <strong className="font-bold text-gray-900" {...props} />
+                    ),
+                    em: ({node, ...props}) => (
+                      <em className="italic text-gray-800" {...props} />
+                    ),
+                    
+                    // Code blocks and inline code
+                    code: ({node, inline, className, children, ...props}) => {
+                      const match = /language-(\w+)/.exec(className || '');
+                      
+                      // Check if this is truly inline code (single line, short text)
+                      const codeText = String(children).trim();
+                      const isReallyInline = inline !== false && !codeText.includes('\n') && codeText.length < 100;
+                      
+                      return isReallyInline ? (
+                        <code className="bg-purple-50 text-purple-900 px-2 py-0.5 rounded text-sm font-semibold border border-purple-200" {...props}>
+                          {children}
+                        </code>
+                      ) : (
+                        <code className="block bg-gray-900 text-gray-100 p-4 rounded-lg text-sm font-mono overflow-x-auto my-4" {...props}>
+                          {children}
+                        </code>
+                      );
+                    },
+                    pre: ({node, children, ...props}) => {
+                      // Check if the pre contains code that should be inline
+                      const textContent = node?.children?.[0]?.children?.[0]?.value || '';
+                      if (textContent && !textContent.includes('\n') && textContent.length < 100) {
+                        // Render as inline code instead
+                        return (
+                          <code className="bg-purple-50 text-purple-900 px-2 py-0.5 rounded text-sm font-semibold border border-purple-200">
+                            {textContent}
+                          </code>
+                        );
+                      }
+                      return <pre className="bg-gray-900 rounded-lg my-4 overflow-hidden" {...props}>{children}</pre>;
+                    },
+                    
+                    // Blockquotes
+                    blockquote: ({node, ...props}) => (
+                      <blockquote className="border-l-4 border-purple-500 pl-4 py-2 my-4 bg-purple-50 text-gray-700 italic" {...props} />
+                    ),
+                    
+                    // Links
+                    a: ({node, ...props}) => (
+                      <a className="text-purple-600 hover:text-purple-800 underline font-medium" target="_blank" rel="noopener noreferrer" {...props} />
+                    ),
+                    
+                    // Horizontal rules
+                    hr: ({node, ...props}) => (
+                      <hr className="my-6 border-t-2 border-gray-200" {...props} />
+                    ),
+                    
+                    // Tables
+                    table: ({node, ...props}) => (
+                      <div className="overflow-x-auto my-4">
+                        <table className="min-w-full divide-y divide-gray-200 border border-gray-300" {...props} />
+                      </div>
+                    ),
+                    thead: ({node, ...props}) => (
+                      <thead className="bg-gray-50" {...props} />
+                    ),
+                    tbody: ({node, ...props}) => (
+                      <tbody className="bg-white divide-y divide-gray-200" {...props} />
+                    ),
+                    tr: ({node, ...props}) => (
+                      <tr {...props} />
+                    ),
+                    th: ({node, ...props}) => (
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider" {...props} />
+                    ),
+                    td: ({node, ...props}) => (
+                      <td className="px-4 py-3 text-sm text-gray-700" {...props} />
+                    ),
                   }}
                 >
                   {analysis.analysis}

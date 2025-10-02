@@ -1,5 +1,5 @@
 import React, { useEffect, useCallback, useMemo } from 'react';
-import { Activity, MapPin, TrendingUp, AlertTriangle, RefreshCw, Mountain, Brain } from 'lucide-react';
+import { Activity, MapPin, TrendingUp, AlertTriangle, RefreshCw, Mountain, Brain, Github } from 'lucide-react';
 import EarthquakeMap from './components/EarthquakeMap';
 import EarthquakeList from './components/EarthquakeList';
 import Statistics from './components/Statistics';
@@ -333,6 +333,18 @@ function App() {
               <p className="text-xs text-gray-400 mt-2">
                 All times are displayed in your local timezone. Server time is synchronized with UTC and Philippine Time (UTC+8).
               </p>
+            </div>
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <a 
+                href="https://github.com/Eplisium" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 text-purple-600 hover:text-purple-800 transition-colors group"
+              >
+                <Github className="h-5 w-5 group-hover:scale-110 transition-transform" />
+                <span className="text-sm font-medium">Made with ♥ by Eplisium</span>
+              </a>
+              <p className="text-xs text-purple-500 mt-2 italic">~ Stay safe and informed ✨</p>
             </div>
           </div>
         </footer>

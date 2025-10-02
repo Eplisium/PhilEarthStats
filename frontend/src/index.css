@@ -34,3 +34,128 @@ body {
 .leaflet-bottom {
   z-index: 10;
 }
+
+/* AI Analysis Content Styling */
+.ai-analysis-content {
+  font-size: 16px;
+  line-height: 1.8;
+  color: #374151;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  letter-spacing: 0.01em;
+}
+
+/* Better text rendering */
+.ai-analysis-content * {
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Ensure proper spacing for nested lists */
+.ai-analysis-content ul ul,
+.ai-analysis-content ul ol,
+.ai-analysis-content ol ul,
+.ai-analysis-content ol ol {
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+/* Better list item rendering */
+.ai-analysis-content li > p {
+  margin-bottom: 0.5rem;
+}
+
+.ai-analysis-content li > p:last-child {
+  margin-bottom: 0;
+}
+
+/* Code block scrolling */
+.ai-analysis-content pre {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+/* Inline code styling - keep it subtle and readable */
+.ai-analysis-content code {
+  word-break: break-word;
+  font-size: 0.9em;
+  font-weight: 600;
+  white-space: normal;
+}
+
+/* Prevent code from being rendered as block when it should be inline */
+.ai-analysis-content p code,
+.ai-analysis-content li code,
+.ai-analysis-content td code,
+.ai-analysis-content th code {
+  display: inline;
+  padding: 0.15em 0.4em;
+  margin: 0 0.1em;
+  vertical-align: baseline;
+}
+
+/* Block code specific styling */
+.ai-analysis-content pre code {
+  display: block;
+  padding: 1rem;
+  font-weight: normal;
+  white-space: pre;
+  word-break: normal;
+}
+
+/* Table responsiveness */
+.ai-analysis-content table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+/* Blockquote styling */
+.ai-analysis-content blockquote p:last-child {
+  margin-bottom: 0;
+}
+
+/* Heading anchors and spacing */
+.ai-analysis-content h1:first-child,
+.ai-analysis-content h2:first-child,
+.ai-analysis-content h3:first-child {
+  margin-top: 0;
+}
+
+/* Better link handling */
+.ai-analysis-content a {
+  word-break: break-word;
+}
+
+/* Image responsiveness if AI includes images */
+.ai-analysis-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+  margin: 1rem 0;
+}
+
+/* Horizontal rule styling */
+.ai-analysis-content hr {
+  background: linear-gradient(to right, transparent, #e5e7eb, transparent);
+}
+
+/* Print styles for AI analysis */
+@media print {
+  .ai-analysis-content {
+    font-size: 12pt;
+    line-height: 1.5;
+  }
+  
+  .ai-analysis-content a {
+    text-decoration: underline;
+    color: #000;
+  }
+  
+  .ai-analysis-content pre,
+  .ai-analysis-content code {
+    border: 1px solid #ddd;
+    page-break-inside: avoid;
+  }
+}
