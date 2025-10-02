@@ -22,8 +22,8 @@ AI_MODELS = {
         'temperature': 0.7
     },
     'openai/gpt-oss-120b': {
-        'name': 'GPT-120B',
-        'description': 'OpenAI GPT-120B - Open source alternative',
+        'name': 'GPT-OSS-120B',
+        'description': 'OpenAI GPT-OSS-120B - Open source alternative',
         'priority': 3,
         'max_tokens': 3000,
         'temperature': 0.7
