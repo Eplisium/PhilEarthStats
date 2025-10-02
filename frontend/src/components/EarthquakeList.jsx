@@ -39,11 +39,11 @@ const EarthquakeList = () => {
   return (
     <div className="space-y-4">
       {/* Controls */}
-      <div className="flex flex-wrap gap-4 items-center justify-between">
-        <div className="flex gap-2">
+      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-stretch sm:items-center justify-between">
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
           <button
             onClick={() => setShowSignificant(false)}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+            className={`px-4 py-2 rounded-lg font-medium transition-colors text-sm sm:text-base ${
               !showSignificant
                 ? 'bg-purple-600 text-white'
                 : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
@@ -53,7 +53,7 @@ const EarthquakeList = () => {
           </button>
           <button
             onClick={() => setShowSignificant(true)}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+            className={`px-4 py-2 rounded-lg font-medium transition-colors text-sm sm:text-base ${
               showSignificant
                 ? 'bg-orange-600 text-white'
                 : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
@@ -63,12 +63,12 @@ const EarthquakeList = () => {
           </button>
         </div>
 
-        <div className="flex items-center gap-2">
-          <label className="text-sm font-medium text-gray-700">Sort by:</label>
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+          <label className="text-xs sm:text-sm font-medium text-gray-700">Sort by:</label>
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm sm:text-base"
           >
             <option value="time">Time (Newest First)</option>
             <option value="magnitude">Magnitude (Highest First)</option>
@@ -87,13 +87,13 @@ const EarthquakeList = () => {
           sortedData.map((earthquake) => (
             <div
               key={earthquake.id}
-              className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+              className="bg-white border border-gray-200 rounded-lg p-3 sm:p-4 hover:shadow-md transition-shadow"
             >
               <div className="flex items-start justify-between">
                 <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
+                  <div className="flex flex-wrap items-center gap-2 mb-2">
                     <span
-                      className={`px-3 py-1 rounded-full text-sm font-bold border ${getMagnitudeColor(
+                      className={`px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-bold border ${getMagnitudeColor(
                         earthquake.magnitude
                       )}`}
                     >
@@ -102,7 +102,8 @@ const EarthquakeList = () => {
                     {earthquake.tsunami && (
                       <span className="flex items-center gap-1 px-2 py-1 bg-red-100 text-red-700 rounded-full text-xs font-semibold">
                         <AlertTriangle className="h-3 w-3" />
-                        TSUNAMI
+                        <span className="hidden sm:inline">TSUNAMI</span>
+                        <span className="sm:hidden">🌊</span>
                       </span>
                     )}
                     {earthquake.alert && (
@@ -117,14 +118,14 @@ const EarthquakeList = () => {
                     )}
                   </div>
 
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">
                     {earthquake.title || earthquake.place}
                   </h3>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-gray-600">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs sm:text-sm text-gray-600">
                     <div className="flex items-center gap-2">
-                      <MapPin className="h-4 w-4 text-gray-400" />
-                      <span>{earthquake.place}</span>
+                      <MapPin className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                      <span className="truncate">{earthquake.place}</span>
                     </div>
                     <div>
                       <strong>Time:</strong> {format(new Date(earthquake.time), 'PPpp')} (Local)
@@ -152,7 +153,7 @@ const EarthquakeList = () => {
                       href={earthquake.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 mt-3 text-purple-600 hover:text-purple-700 text-sm font-medium"
+                      className="inline-flex items-center gap-1 mt-3 text-purple-600 hover:text-purple-700 text-xs sm:text-sm font-medium"
                     >
                       View Details on USGS
                       <ExternalLink className="h-3 w-3" />

@@ -76,46 +76,46 @@ const Statistics = () => {
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
-      <div className={`grid grid-cols-1 md:grid-cols-4 gap-4 transition-all duration-700 ${
+      <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 transition-all duration-700 ${
         animateCards ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
       }`}>
-        <div className="bg-white border border-gray-200 rounded-lg p-4 transform transition-all duration-500 hover:scale-105 hover:shadow-lg">
+        <div className="bg-white border border-gray-200 rounded-lg p-3 sm:p-4 transform transition-all duration-500 hover:scale-105 hover:shadow-lg">
           <div className="flex items-center gap-2 mb-2">
-            <Activity className="h-5 w-5 text-purple-600" />
-            <span className="text-sm text-gray-600">Total Events</span>
+            <Activity className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600" />
+            <span className="text-xs sm:text-sm text-gray-600">Total Events</span>
           </div>
-          <p className="text-3xl font-bold text-gray-900">{totalEvents}</p>
+          <p className="text-2xl sm:text-3xl font-bold text-gray-900">{totalEvents}</p>
           <p className="text-xs text-gray-500 mt-1">Last 30 days</p>
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-lg p-4 transform transition-all duration-500 hover:scale-105 hover:shadow-lg">
+        <div className="bg-white border border-gray-200 rounded-lg p-3 sm:p-4 transform transition-all duration-500 hover:scale-105 hover:shadow-lg">
           <div className="flex items-center gap-2 mb-2">
-            <TrendingUp className="h-5 w-5 text-red-600" />
-            <span className="text-sm text-gray-600">Max Magnitude</span>
+            <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-red-600" />
+            <span className="text-xs sm:text-sm text-gray-600">Max Magnitude</span>
           </div>
-          <p className="text-3xl font-bold text-red-600">
+          <p className="text-2xl sm:text-3xl font-bold text-red-600">
             {maxMagnitude.toFixed(1)}
           </p>
           <p className="text-xs text-gray-500 mt-1">Highest recorded</p>
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-lg p-4 transform transition-all duration-500 hover:scale-105 hover:shadow-lg">
+        <div className="bg-white border border-gray-200 rounded-lg p-3 sm:p-4 transform transition-all duration-500 hover:scale-105 hover:shadow-lg">
           <div className="flex items-center gap-2 mb-2">
-            <Activity className="h-5 w-5 text-sky-500" />
-            <span className="text-sm text-gray-600">Avg Magnitude</span>
+            <Activity className="h-4 w-4 sm:h-5 sm:w-5 text-sky-500" />
+            <span className="text-xs sm:text-sm text-gray-600">Avg Magnitude</span>
           </div>
-          <p className="text-3xl font-bold text-sky-500">
+          <p className="text-2xl sm:text-3xl font-bold text-sky-500">
             {avgMagnitude.toFixed(1)}
           </p>
           <p className="text-xs text-gray-500 mt-1">Mean value</p>
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-lg p-4 transform transition-all duration-500 hover:scale-105 hover:shadow-lg">
+        <div className="bg-white border border-gray-200 rounded-lg p-3 sm:p-4 transform transition-all duration-500 hover:scale-105 hover:shadow-lg">
           <div className="flex items-center gap-2 mb-2">
-            <Layers className="h-5 w-5 text-orange-600" />
-            <span className="text-sm text-gray-600">Avg Depth</span>
+            <Layers className="h-4 w-4 sm:h-5 sm:w-5 text-orange-600" />
+            <span className="text-xs sm:text-sm text-gray-600">Avg Depth</span>
           </div>
-          <p className="text-3xl font-bold text-orange-600">
+          <p className="text-2xl sm:text-3xl font-bold text-orange-600">
             {avgDepth.toFixed(0)} km
           </p>
           <p className="text-xs text-gray-500 mt-1">Mean depth</p>
@@ -123,14 +123,14 @@ const Statistics = () => {
       </div>
 
       {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {/* Magnitude Distribution */}
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">
+        <div className="bg-white border border-gray-200 rounded-lg p-4 sm:p-6">
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">
             Magnitude Distribution
           </h3>
           {showCharts ? (
-            <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer width="100%" height={250} className="sm:h-[300px]">
               <BarChart data={magnitudeData} key={`bar-${chartKey}`} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
                 <defs>
                   {magnitudeData.map((entry, index) => (
@@ -204,12 +204,12 @@ const Statistics = () => {
         </div>
 
         {/* Depth Distribution */}
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">
+        <div className="bg-white border border-gray-200 rounded-lg p-4 sm:p-6">
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">
             Depth Distribution
           </h3>
           {showCharts ? (
-            <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer width="100%" height={250} className="sm:h-[300px]">
               <PieChart key={`pie-${chartKey}`}>
                 <defs>
                   {depthData.map((entry, index) => (
@@ -277,13 +277,13 @@ const Statistics = () => {
       </div>
 
       {/* Detailed Statistics */}
-      <div className={`grid grid-cols-1 lg:grid-cols-2 gap-6 transition-all duration-700 delay-300 ${
+      <div className={`grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 transition-all duration-700 delay-300 ${
         animateCards ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
       }`}>
         {/* Magnitude Stats */}
-        <div className="bg-white border border-gray-200 rounded-lg p-6 transform transition-all duration-500 hover:scale-[1.02] hover:shadow-xl">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <TrendingUp className="h-5 w-5" />
+        <div className="bg-white border border-gray-200 rounded-lg p-4 sm:p-6 transform transition-all duration-500 hover:scale-[1.02] hover:shadow-xl">
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4 flex items-center gap-2">
+            <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5" />
             Magnitude Statistics
           </h3>
           <div className="space-y-3">
@@ -324,9 +324,9 @@ const Statistics = () => {
         </div>
 
         {/* Depth Stats */}
-        <div className="bg-white border border-gray-200 rounded-lg p-6 transform transition-all duration-500 hover:scale-[1.02] hover:shadow-xl">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <Layers className="h-5 w-5" />
+        <div className="bg-white border border-gray-200 rounded-lg p-4 sm:p-6 transform transition-all duration-500 hover:scale-[1.02] hover:shadow-xl">
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4 flex items-center gap-2">
+            <Layers className="h-4 w-4 sm:h-5 sm:w-5" />
             Depth Statistics
           </h3>
           <div className="space-y-3">
@@ -384,13 +384,13 @@ const Statistics = () => {
       </div>
 
       {/* Info Box */}
-      <div className={`bg-purple-50 border border-purple-200 rounded-lg p-4 transition-all duration-700 delay-900 ${
+      <div className={`bg-purple-50 border border-purple-200 rounded-lg p-3 sm:p-4 transition-all duration-700 delay-900 ${
         animateCards ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
       }`}>
-        <p className="text-sm text-purple-800">
-          <strong>Analysis Period:</strong> {statistics.period} | 
-          <strong className="ml-2">Data Source:</strong> {statistics.metadata.source} | 
-          <strong className="ml-2">Total Events:</strong> {statistics.total_earthquakes}
+        <p className="text-xs sm:text-sm text-purple-800">
+          <strong>Analysis Period:</strong> {statistics.period} <span className="hidden sm:inline">| </span><br className="sm:hidden" />
+          <strong className="sm:ml-2">Data Source:</strong> {statistics.metadata.source} <span className="hidden sm:inline">| </span><br className="sm:hidden" />
+          <strong className="sm:ml-2">Total Events:</strong> {statistics.total_earthquakes}
         </p>
       </div>
     </div>

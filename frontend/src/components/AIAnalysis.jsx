@@ -30,29 +30,29 @@ const AIAnalysis = () => {
   return (
     <div className="space-y-6">
       {/* Header with Generate Button */}
-      <div className="bg-gradient-to-r from-purple-100 to-blue-100 rounded-lg p-6 border border-purple-300">
-        <div className="flex items-start justify-between">
-          <div className="flex-1">
-            <div className="flex items-center gap-3 mb-3">
-              <Brain className="h-8 w-8 text-purple-600" />
-              <h2 className="text-2xl font-bold text-gray-900">AI-Powered Seismic Analysis</h2>
+      <div className="bg-gradient-to-r from-purple-100 to-blue-100 rounded-lg p-4 sm:p-6 border border-purple-300">
+        <div className="flex flex-col lg:flex-row items-start justify-between gap-4">
+          <div className="flex-1 w-full lg:w-auto">
+            <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
+              <Brain className="h-6 w-6 sm:h-8 sm:w-8 text-purple-600 flex-shrink-0" />
+              <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900">AI-Powered Seismic Analysis</h2>
             </div>
-            <p className="text-gray-700 mb-4">
+            <p className="text-sm sm:text-base text-gray-700 mb-3 sm:mb-4">
               Get comprehensive insights from an AI seismologist analyzing the last 30 days of earthquake data 
               for the Philippines region. The AI will assess patterns, risks, and provide actionable recommendations.
             </p>
             
             {/* Model Selection */}
-            <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                <Sparkles className="inline h-4 w-4 mr-1" />
+            <div className="mb-3 sm:mb-4">
+              <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-2">
+                <Sparkles className="inline h-3 w-3 sm:h-4 sm:w-4 mr-1" />
                 AI Model Selection
               </label>
               <select
                 value={selectedModel || ''}
                 onChange={(e) => setSelectedModel(e.target.value)}
                 disabled={loading || loadingModels}
-                className="w-full md:w-96 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 disabled:opacity-50 disabled:cursor-not-allowed bg-white text-gray-900"
+                className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 disabled:opacity-50 disabled:cursor-not-allowed bg-white text-gray-900 text-sm sm:text-base"
               >
                 {loadingModels ? (
                   <option>Loading models...</option>
@@ -68,26 +68,26 @@ const AIAnalysis = () => {
                 Select the AI model to use for analysis. Different models may provide varying insights.
               </p>
             </div>
-            <div className="flex flex-wrap gap-2 text-sm text-gray-600">
-              <span className="flex items-center gap-1 bg-white px-3 py-1 rounded-full border border-gray-200">
-                <Activity className="h-4 w-4" />
+            <div className="flex flex-wrap gap-2 text-xs sm:text-sm text-gray-600">
+              <span className="flex items-center gap-1 bg-white px-2 sm:px-3 py-1 rounded-full border border-gray-200">
+                <Activity className="h-3 w-3 sm:h-4 sm:w-4" />
                 30-day comprehensive analysis
               </span>
-              <span className="flex items-center gap-1 bg-white px-3 py-1 rounded-full border border-gray-200">
-                <TrendingUp className="h-4 w-4" />
+              <span className="flex items-center gap-1 bg-white px-2 sm:px-3 py-1 rounded-full border border-gray-200">
+                <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4" />
                 Pattern detection
               </span>
-              <span className="flex items-center gap-1 bg-white px-3 py-1 rounded-full border border-gray-200">
-                <AlertCircle className="h-4 w-4" />
+              <span className="flex items-center gap-1 bg-white px-2 sm:px-3 py-1 rounded-full border border-gray-200">
+                <AlertCircle className="h-3 w-3 sm:h-4 sm:w-4" />
                 Risk assessment
               </span>
             </div>
           </div>
-          <div className="ml-4 flex flex-col gap-2">
+          <div className="flex flex-col gap-2 w-full lg:w-auto">
             <button
               onClick={generateAnalysis}
               disabled={loading}
-              className="flex items-center gap-2 px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium shadow-md"
+              className="flex items-center justify-center gap-2 px-4 sm:px-6 py-2 sm:py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium shadow-md text-sm sm:text-base"
             >
               {loading ? (
                 <>
@@ -154,22 +154,22 @@ const AIAnalysis = () => {
 
       {/* Analysis Results */}
       {!loading && analysis && (
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           {/* Statistics Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-white rounded-lg border border-gray-200 p-4">
-              <h4 className="text-sm font-semibold text-gray-600 mb-2">Total Earthquakes</h4>
-              <p className="text-3xl font-bold text-purple-600">{analysis.statistics.total_count}</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+            <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4">
+              <h4 className="text-xs sm:text-sm font-semibold text-gray-600 mb-2">Total Earthquakes</h4>
+              <p className="text-2xl sm:text-3xl font-bold text-purple-600">{analysis.statistics.total_count}</p>
               <p className="text-xs text-gray-500 mt-1">Last 30 days</p>
             </div>
-            <div className="bg-white rounded-lg border border-gray-200 p-4">
-              <h4 className="text-sm font-semibold text-gray-600 mb-2">Max Magnitude</h4>
-              <p className="text-3xl font-bold text-orange-600">M {analysis.statistics.max_magnitude.toFixed(1)}</p>
+            <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4">
+              <h4 className="text-xs sm:text-sm font-semibold text-gray-600 mb-2">Max Magnitude</h4>
+              <p className="text-2xl sm:text-3xl font-bold text-orange-600">M {analysis.statistics.max_magnitude.toFixed(1)}</p>
               <p className="text-xs text-gray-500 mt-1">Average: M {analysis.statistics.avg_magnitude.toFixed(1)}</p>
             </div>
-            <div className="bg-white rounded-lg border border-gray-200 p-4">
-              <h4 className="text-sm font-semibold text-gray-600 mb-2">Significant Events</h4>
-              <p className="text-3xl font-bold text-red-600">{analysis.statistics.significant_count}</p>
+            <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4 sm:col-span-2 lg:col-span-1">
+              <h4 className="text-xs sm:text-sm font-semibold text-gray-600 mb-2">Significant Events</h4>
+              <p className="text-2xl sm:text-3xl font-bold text-red-600">{analysis.statistics.significant_count}</p>
               <p className="text-xs text-gray-500 mt-1">Magnitude ≥ 4.5</p>
             </div>
           </div>

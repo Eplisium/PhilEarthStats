@@ -74,14 +74,14 @@ function App() {
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-100">
       {/* Header */}
       <header className="bg-white shadow-md sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
+            <div className="flex items-center space-x-2 sm:space-x-3">
               {/* Custom Logo - Replace logo.jpg in src/assets folder */}
               <img 
                 src={logoImage} 
                 alt="PhilEarthStats Logo" 
-                className="h-12 w-12 object-contain rounded-lg"
+                className="h-10 w-10 sm:h-12 sm:w-12 object-contain rounded-lg flex-shrink-0"
                 onError={(e) => {
                   // Fallback to Activity icon if image fails to load
                   e.target.style.display = 'none';
@@ -92,36 +92,36 @@ function App() {
               <div>
                 <CustomTooltip text="Click to scroll to top" position="bottom">
                   <h1 
-                    className="text-3xl font-bold text-gray-900 cursor-pointer hover:text-purple-600 transition-colors"
+                    className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 cursor-pointer hover:text-purple-600 transition-colors"
                     onClick={scrollToTop}
                   >
                     PhilEarthStats
                   </h1>
                 </CustomTooltip>
-                <p className="text-sm text-gray-600">Real-time Philippines Seismic & Volcanic Monitor</p>
+                <p className="text-xs sm:text-sm text-gray-600">Real-time Philippines Seismic & Volcanic Monitor</p>
               </div>
             </div>
             <button
               onClick={fetchData}
               disabled={loading}
-              className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm sm:text-base self-start sm:self-auto"
             >
               <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
               <span>Refresh</span>
             </button>
           </div>
-          <div className="mt-2 flex items-center justify-between text-xs text-gray-500">
+          <div className="mt-2 flex flex-col sm:flex-row items-start sm:items-center justify-between text-xs text-gray-500 gap-2 sm:gap-4">
             <div>
               {lastUpdate && (
                 <span>Last updated: {lastUpdate.toLocaleString()}</span>
               )}
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-4">
               <span className="font-semibold text-purple-600">
                 Local Time: {currentTime.toLocaleTimeString()}
               </span>
-              <span className="text-gray-400">|</span>
-              <span>
+              <span className="hidden sm:inline text-gray-400">|</span>
+              <span className="text-xs">
                 {currentTime.toLocaleDateString(undefined, { 
                   weekday: 'short', 
                   year: 'numeric', 
@@ -138,10 +138,10 @@ function App() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Filter Toggle */}
         <div className="mb-6 bg-white rounded-lg shadow-md p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900">Earthquake Data Filter</h3>
-              <p className="text-sm text-gray-600 mt-1">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex-1">
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900">Earthquake Data Filter</h3>
+              <p className="text-xs sm:text-sm text-gray-600 mt-1">
                 {showAllEarthquakes 
                   ? 'Showing ALL earthquakes including tiny aftershocks (no magnitude filter)' 
                   : 'Showing earthquakes with magnitude ≥ 2.5'}
@@ -149,13 +149,13 @@ function App() {
             </div>
             <button
               onClick={toggleShowAllEarthquakes}
-              className={`px-6 py-3 rounded-lg font-medium transition-all ${
+              className={`px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-medium transition-all text-sm sm:text-base whitespace-nowrap self-stretch sm:self-auto ${
                 showAllEarthquakes
                   ? 'bg-orange-600 text-white hover:bg-orange-700'
                   : 'bg-purple-600 text-white hover:bg-purple-700'
               }`}
             >
-              {showAllEarthquakes ? 'Show Filtered (M ≥ 2.5)' : 'Show All (Include Aftershocks)'}
+              {showAllEarthquakes ? 'Show Filtered (M ≥ 2.5)' : 'Show All'}
             </button>
           </div>
         </div>
@@ -211,71 +211,75 @@ function App() {
 
         {/* Tabs */}
         <div className="bg-white rounded-lg shadow-md mb-8">
-          <div className="border-b border-gray-200">
-            <nav className="flex -mb-px">
+          <div className="border-b border-gray-200 overflow-x-auto">
+            <nav className="flex -mb-px min-w-min">
               <button
                 onClick={() => setActiveTab('map')}
-                className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                className={`px-4 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                   activeTab === 'map'
                     ? 'border-purple-600 text-purple-600'
                     : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
                 }`}
               >
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-1 sm:space-x-2">
                   <MapPin className="h-4 w-4" />
-                  <span>Interactive Map</span>
+                  <span className="hidden sm:inline">Interactive Map</span>
+                  <span className="sm:hidden">Map</span>
                 </div>
               </button>
               <button
                 onClick={() => setActiveTab('earthquakes')}
-                className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                className={`px-4 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                   activeTab === 'earthquakes'
                     ? 'border-purple-600 text-purple-600'
                     : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
                 }`}
               >
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-1 sm:space-x-2">
                   <Activity className="h-4 w-4" />
-                  <span>Earthquake List</span>
+                  <span className="hidden sm:inline">Earthquake List</span>
+                  <span className="sm:hidden">Earthquakes</span>
                 </div>
               </button>
               <button
                 onClick={() => setActiveTab('volcanoes')}
-                className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                className={`px-4 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                   activeTab === 'volcanoes'
                     ? 'border-purple-600 text-purple-600'
                     : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
                 }`}
               >
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-1 sm:space-x-2">
                   <Mountain className="h-4 w-4" />
                   <span>Volcanoes</span>
                 </div>
               </button>
               <button
                 onClick={() => setActiveTab('statistics')}
-                className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                className={`px-4 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                   activeTab === 'statistics'
                     ? 'border-purple-600 text-purple-600'
                     : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
                 }`}
               >
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-1 sm:space-x-2">
                   <TrendingUp className="h-4 w-4" />
-                  <span>Statistics</span>
+                  <span className="hidden sm:inline">Statistics</span>
+                  <span className="sm:hidden">Stats</span>
                 </div>
               </button>
               <button
                 onClick={() => setActiveTab('ai-analysis')}
-                className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                className={`px-4 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                   activeTab === 'ai-analysis'
                     ? 'border-purple-600 text-purple-600'
                     : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
                 }`}
               >
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-1 sm:space-x-2">
                   <Brain className="h-4 w-4" />
-                  <span>AI Analysis</span>
+                  <span className="hidden sm:inline">AI Analysis</span>
+                  <span className="sm:hidden">AI</span>
                 </div>
               </button>
             </nav>
@@ -312,9 +316,9 @@ function App() {
         </div>
 
         {/* Footer */}
-        <footer className="bg-white rounded-lg shadow-md p-6 text-center">
+        <footer className="bg-white rounded-lg shadow-md p-4 sm:p-6 text-center">
           <div className="space-y-2">
-            <p className="text-sm text-gray-600">
+            <p className="text-xs sm:text-sm text-gray-600">
               Data Sources: <span className="font-semibold">USGS Earthquake Catalog</span> & <span className="font-semibold">PHIVOLCS</span>
             </p>
             <p className="text-xs text-gray-500">
@@ -342,7 +346,7 @@ function App() {
                 className="inline-flex items-center gap-2 text-purple-600 hover:text-purple-800 transition-colors group"
               >
                 <Github className="h-5 w-5 group-hover:scale-110 transition-transform" />
-                <span className="text-sm font-medium">Made with ♥ by Eplisium</span>
+                <span className="text-xs sm:text-sm font-medium">Made with ♥ by Eplisium</span>
               </a>
               <p className="text-xs text-purple-500 mt-2 italic">~ Stay safe and informed ✨</p>
             </div>

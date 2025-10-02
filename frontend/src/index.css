@@ -15,6 +15,35 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background: linear-gradient(to bottom right, #faf5ff, #dbeafe);
+  /* Prevent horizontal scrolling on mobile */
+  overflow-x: hidden;
+}
+
+/* Mobile touch optimization */
+@media (max-width: 768px) {
+  /* Improve tap target sizes on mobile */
+  button, a, input, select {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Prevent text selection on tap for better UX */
+  button {
+    -webkit-tap-highlight-color: rgba(147, 51, 234, 0.2);
+    -webkit-touch-callout: none;
+    user-select: none;
+  }
+  
+  /* Smooth scrolling on mobile */
+  html {
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Better mobile input handling */
+  input, select, textarea {
+    font-size: 16px; /* Prevents zoom on iOS */
+  }
 }
 
 .leaflet-container {
@@ -109,6 +138,19 @@ body {
   display: block;
   max-width: 100%;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Mobile-specific table adjustments */
+@media (max-width: 640px) {
+  .ai-analysis-content table {
+    font-size: 0.875rem;
+  }
+  
+  .ai-analysis-content th,
+  .ai-analysis-content td {
+    padding: 0.5rem !important;
+  }
 }
 
 /* Blockquote styling */

@@ -65,51 +65,51 @@ const VolcanoList = () => {
   return (
     <div className="space-y-4">
       {/* Alert Summary */}
-      <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-        <div className="flex items-start gap-3">
-          <AlertTriangle className="h-5 w-5 text-purple-600 mt-0.5" />
+      <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 sm:p-4">
+        <div className="flex items-start gap-2 sm:gap-3">
+          <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600 mt-0.5 flex-shrink-0" />
           <div className="flex-1">
-            <h3 className="font-semibold text-purple-900 mb-1">Volcano Alert Levels</h3>
-            <p className="text-sm text-purple-800 mb-2">
+            <h3 className="text-sm sm:text-base font-semibold text-purple-900 mb-1">Volcano Alert Levels</h3>
+            <p className="text-xs sm:text-sm text-purple-800 mb-2">
               PHIVOLCS uses a 5-level alert system to indicate volcanic activity status:
             </p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 sm:gap-2 text-xs">
               <div><strong>Level 0:</strong> No alert (Normal)</div>
               <div><strong>Level 1:</strong> Abnormal (Increased unrest)</div>
               <div><strong>Level 2:</strong> Moderate unrest</div>
               <div><strong>Level 3:</strong> High unrest (Eruption possible)</div>
-              <div><strong>Level 4-5:</strong> Eruption imminent or in progress</div>
+              <div className="sm:col-span-2"><strong>Level 4-5:</strong> Eruption imminent or in progress</div>
             </div>
           </div>
         </div>
       </div>
 
       {/* Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white border border-gray-200 rounded-lg p-4 transform transition-all duration-500 hover:scale-105 hover:shadow-lg">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+        <div className="bg-white border border-gray-200 rounded-lg p-3 sm:p-4 transform transition-all duration-500 hover:scale-105 hover:shadow-lg">
           <div className="flex items-center gap-2 mb-2">
-            <Mountain className="h-5 w-5 text-gray-600" />
-            <span className="text-sm text-gray-600">Total Monitored</span>
+            <Mountain className="h-4 w-4 sm:h-5 sm:w-5 text-gray-600" />
+            <span className="text-xs sm:text-sm text-gray-600">Total Monitored</span>
           </div>
-          <p className="text-2xl font-bold text-gray-900">{totalMonitored}</p>
+          <p className="text-xl sm:text-2xl font-bold text-gray-900">{totalMonitored}</p>
           <p className="text-xs text-gray-500 mt-1">Active volcanoes</p>
         </div>
-        <div className="bg-white border border-gray-200 rounded-lg p-4 transform transition-all duration-500 hover:scale-105 hover:shadow-lg">
+        <div className="bg-white border border-gray-200 rounded-lg p-3 sm:p-4 transform transition-all duration-500 hover:scale-105 hover:shadow-lg">
           <div className="flex items-center gap-2 mb-2">
-            <AlertTriangle className="h-5 w-5 text-orange-600" />
-            <span className="text-sm text-gray-600">On Alert</span>
+            <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 text-orange-600" />
+            <span className="text-xs sm:text-sm text-gray-600">On Alert</span>
           </div>
-          <p className="text-2xl font-bold text-orange-600">
+          <p className="text-xl sm:text-2xl font-bold text-orange-600">
             {onAlert}
           </p>
           <p className="text-xs text-gray-500 mt-1">Alert Level &gt; 0</p>
         </div>
-        <div className="bg-white border border-gray-200 rounded-lg p-4 transform transition-all duration-500 hover:scale-105 hover:shadow-lg">
+        <div className="bg-white border border-gray-200 rounded-lg p-3 sm:p-4 transform transition-all duration-500 hover:scale-105 hover:shadow-lg sm:col-span-2 lg:col-span-1">
           <div className="flex items-center gap-2 mb-2">
-            <TrendingUp className="h-5 w-5 text-sky-500" />
-            <span className="text-sm text-gray-600">Normal Status</span>
+            <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-sky-500" />
+            <span className="text-xs sm:text-sm text-gray-600">Normal Status</span>
           </div>
-          <p className="text-2xl font-bold text-sky-500">
+          <p className="text-xl sm:text-2xl font-bold text-sky-500">
             {normalStatus}
           </p>
           <p className="text-xs text-gray-500 mt-1">Alert Level 0</p>
@@ -117,29 +117,29 @@ const VolcanoList = () => {
       </div>
 
       {/* Additional Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white border border-gray-200 rounded-lg p-4 transform transition-all duration-500 hover:scale-105 hover:shadow-lg">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+        <div className="bg-white border border-gray-200 rounded-lg p-3 sm:p-4 transform transition-all duration-500 hover:scale-105 hover:shadow-lg">
           <div className="flex items-center gap-2 mb-2">
-            <Flame className="h-5 w-5 text-red-600" />
-            <span className="text-sm text-gray-600">Historical Eruptions</span>
+            <Flame className="h-4 w-4 sm:h-5 sm:w-5 text-red-600" />
+            <span className="text-xs sm:text-sm text-gray-600">Historical Eruptions</span>
           </div>
-          <p className="text-2xl font-bold text-red-600">{eruptionsCount}</p>
+          <p className="text-xl sm:text-2xl font-bold text-red-600">{eruptionsCount}</p>
           <p className="text-xs text-gray-500 mt-1">Total recorded</p>
         </div>
-        <div className="bg-white border border-gray-200 rounded-lg p-4 transform transition-all duration-500 hover:scale-105 hover:shadow-lg">
+        <div className="bg-white border border-gray-200 rounded-lg p-3 sm:p-4 transform transition-all duration-500 hover:scale-105 hover:shadow-lg">
           <div className="flex items-center gap-2 mb-2">
-            <Users className="h-5 w-5 text-blue-600" />
-            <span className="text-sm text-gray-600">At-Risk Population</span>
+            <Users className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
+            <span className="text-xs sm:text-sm text-gray-600">At-Risk Population</span>
           </div>
-          <p className="text-2xl font-bold text-blue-600">{affectedPopulation.toLocaleString()}</p>
+          <p className="text-xl sm:text-2xl font-bold text-blue-600">{affectedPopulation.toLocaleString()}</p>
           <p className="text-xs text-gray-500 mt-1">Within danger zones</p>
         </div>
-        <div className="bg-white border border-gray-200 rounded-lg p-4 transform transition-all duration-500 hover:scale-105 hover:shadow-lg">
+        <div className="bg-white border border-gray-200 rounded-lg p-3 sm:p-4 transform transition-all duration-500 hover:scale-105 hover:shadow-lg sm:col-span-2 lg:col-span-1">
           <div className="flex items-center gap-2 mb-2">
-            <Radio className="h-5 w-5 text-green-600" />
-            <span className="text-sm text-gray-600">Monitoring Network</span>
+            <Radio className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
+            <span className="text-xs sm:text-sm text-gray-600">Monitoring Network</span>
           </div>
-          <p className="text-2xl font-bold text-green-600">{seismicStationsCount}</p>
+          <p className="text-xl sm:text-2xl font-bold text-green-600">{seismicStationsCount}</p>
           <p className="text-xs text-gray-500 mt-1">Seismic stations</p>
         </div>
       </div>
@@ -152,17 +152,17 @@ const VolcanoList = () => {
             className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-all duration-300"
           >
             {/* Main Card Header */}
-            <div className="p-5">
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex items-center gap-3">
-                  <Mountain className="h-8 w-8 text-gray-700" />
+            <div className="p-3 sm:p-5">
+              <div className="flex flex-col sm:flex-row items-start sm:items-start justify-between gap-3 mb-3">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <Mountain className="h-6 w-6 sm:h-8 sm:w-8 text-gray-700 flex-shrink-0" />
                   <div>
-                    <h3 className="text-xl font-bold text-gray-900">{volcano.name}</h3>
-                    <p className="text-sm text-gray-600">{volcano.type}</p>
+                    <h3 className="text-lg sm:text-xl font-bold text-gray-900">{volcano.name}</h3>
+                    <p className="text-xs sm:text-sm text-gray-600">{volcano.type}</p>
                   </div>
                 </div>
                 <span
-                  className={`px-3 py-1 rounded-full text-sm font-bold border ${getAlertLevelColor(
+                  className={`px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-bold border self-start ${getAlertLevelColor(
                     volcano.alert_level
                   )}`}
                 >
@@ -171,11 +171,11 @@ const VolcanoList = () => {
               </div>
 
               <div className="space-y-2 mb-4">
-                <div className="flex items-start gap-2 text-sm">
+                <div className="flex items-start gap-2 text-xs sm:text-sm">
                   <MapPin className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
                   <span className="text-gray-700">{volcano.location}</span>
                 </div>
-                <div className="grid grid-cols-2 gap-2 text-sm">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs sm:text-sm">
                   <div>
                     <span className="text-gray-600">Elevation:</span>{' '}
                     <span className="font-semibold text-gray-900">{volcano.elevation} m</span>
@@ -185,7 +185,7 @@ const VolcanoList = () => {
                     <span className="font-semibold text-gray-900">{volcano.last_eruption}</span>
                   </div>
                 </div>
-                <div className="text-sm">
+                <div className="text-xs sm:text-sm">
                   <span className="text-gray-600">Coordinates:</span>{' '}
                   <span className="font-mono text-gray-900">
                     {volcano.latitude.toFixed(4)}°, {volcano.longitude.toFixed(4)}°
@@ -193,12 +193,12 @@ const VolcanoList = () => {
                 </div>
               </div>
 
-              <div className={`p-3 rounded-lg border ${getAlertLevelColor(volcano.alert_level)}`}>
-                <p className="text-sm font-semibold mb-1">{volcano.status}</p>
+              <div className={`p-2 sm:p-3 rounded-lg border ${getAlertLevelColor(volcano.alert_level)}`}>
+                <p className="text-xs sm:text-sm font-semibold mb-1">{volcano.status}</p>
                 <p className="text-xs">{getAlertLevelDescription(volcano.alert_level)}</p>
               </div>
 
-              <p className="text-sm text-gray-600 mt-3 italic">{volcano.description}</p>
+              <p className="text-xs sm:text-sm text-gray-600 mt-3 italic">{volcano.description}</p>
 
               {volcano.alert_level > 0 && (
                 <div className="mt-3 p-2 bg-yellow-50 border border-yellow-200 rounded">
@@ -211,10 +211,10 @@ const VolcanoList = () => {
               {/* Expand/Collapse Button */}
               <button
                 onClick={() => setExpandedVolcano(expandedVolcano === volcano.id ? null : volcano.id)}
-                className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-2 bg-gray-50 hover:bg-gray-100 border border-gray-300 rounded-lg transition-colors"
+                className="mt-4 w-full flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-gray-50 hover:bg-gray-100 border border-gray-300 rounded-lg transition-colors"
               >
                 <Info className="h-4 w-4" />
-                <span className="text-sm font-medium">
+                <span className="text-xs sm:text-sm font-medium">
                   {expandedVolcano === volcano.id ? 'Hide' : 'Show'} Detailed Information
                 </span>
                 {expandedVolcano === volcano.id ? (

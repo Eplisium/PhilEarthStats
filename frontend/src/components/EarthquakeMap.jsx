@@ -45,7 +45,7 @@ const EarthquakeMap = () => {
   });
 
   return (
-    <div className="h-[600px] rounded-lg overflow-hidden">
+    <div className="h-[400px] sm:h-[500px] lg:h-[600px] rounded-lg overflow-hidden">
       <MapContainer
         center={philippinesCenter}
         zoom={6}
@@ -137,43 +137,43 @@ const EarthquakeMap = () => {
       </MapContainer>
 
       {/* Legend */}
-      <div className="mt-4 bg-white p-4 rounded-lg border-2 border-gray-300 shadow-sm">
-        <h4 className="font-semibold mb-2">Legend</h4>
-        <div className="grid grid-cols-2 gap-4">
+      <div className="mt-3 sm:mt-4 bg-white p-3 sm:p-4 rounded-lg border-2 border-gray-300 shadow-sm">
+        <h4 className="text-sm sm:text-base font-semibold mb-2">Legend</h4>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
           <div>
-            <p className="text-sm font-semibold mb-3 text-gray-700">Earthquake Magnitude:</p>
-            <div className="space-y-2 text-xs">
+            <p className="text-xs sm:text-sm font-semibold mb-2 sm:mb-3 text-gray-700">Earthquake Magnitude:</p>
+            <div className="space-y-1 sm:space-y-2 text-xs">
               <div className="flex items-center">
-                <div className="w-4 h-4 rounded-full mr-2 border border-gray-300" style={{ backgroundColor: '#dc2626' }}></div>
+                <div className="w-3 h-3 sm:w-4 sm:h-4 rounded-full mr-2 border border-gray-300 flex-shrink-0" style={{ backgroundColor: '#dc2626' }}></div>
                 <span className="font-medium">M ≥ 7.0 (Major)</span>
               </div>
               <div className="flex items-center">
-                <div className="w-4 h-4 rounded-full mr-2 border border-gray-300" style={{ backgroundColor: '#ea580c' }}></div>
+                <div className="w-3 h-3 sm:w-4 sm:h-4 rounded-full mr-2 border border-gray-300 flex-shrink-0" style={{ backgroundColor: '#ea580c' }}></div>
                 <span>M 6.0-6.9 (Strong)</span>
               </div>
               <div className="flex items-center">
-                <div className="w-4 h-4 rounded-full mr-2 border border-gray-300" style={{ backgroundColor: '#eab308' }}></div>
+                <div className="w-3 h-3 sm:w-4 sm:h-4 rounded-full mr-2 border border-gray-300 flex-shrink-0" style={{ backgroundColor: '#eab308' }}></div>
                 <span>M 5.0-5.9 (Moderate)</span>
               </div>
               <div className="flex items-center">
-                <div className="w-4 h-4 rounded-full mr-2 border border-gray-300" style={{ backgroundColor: '#3b82f6' }}></div>
+                <div className="w-3 h-3 sm:w-4 sm:h-4 rounded-full mr-2 border border-gray-300 flex-shrink-0" style={{ backgroundColor: '#3b82f6' }}></div>
                 <span>M 4.0-4.9 (Light)</span>
               </div>
               <div className="flex items-center">
-                <div className="w-4 h-4 rounded-full mr-2 border border-gray-300" style={{ backgroundColor: '#10b981' }}></div>
+                <div className="w-3 h-3 sm:w-4 sm:h-4 rounded-full mr-2 border border-gray-300 flex-shrink-0" style={{ backgroundColor: '#10b981' }}></div>
                 <span>M 3.0-3.9 (Minor)</span>
               </div>
             </div>
           </div>
           <div>
-            <p className="text-sm font-semibold mb-3 text-gray-700">Markers:</p>
+            <p className="text-xs sm:text-sm font-semibold mb-2 sm:mb-3 text-gray-700">Markers:</p>
             <div className="space-y-1 text-xs">
               <div className="flex items-center">
-                <div className="w-6 h-6 mr-2">🔴</div>
+                <div className="w-5 h-5 sm:w-6 sm:h-6 mr-2 flex-shrink-0">🔴</div>
                 <span>Earthquake Epicenter</span>
               </div>
               <div className="flex items-center">
-                <div className="w-6 h-6 mr-2">🌋</div>
+                <div className="w-5 h-5 sm:w-6 sm:h-6 mr-2 flex-shrink-0">🌋</div>
                 <span>Active Volcano</span>
               </div>
             </div>
