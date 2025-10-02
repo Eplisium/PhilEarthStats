@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 import requests
 from datetime import datetime, timedelta
@@ -1273,6 +1273,18 @@ def sync_historical_data():
             'success': False,
             'error': f'Failed to sync historical data: {str(e)}'
         }), 500
+
+# Serve static files (production)
+@app.route('/', defaults={'path': ''})
+@app.route('/<path:path>')
+def serve_static(path):
+    """Serve the React app static files"""
+    static_folder = os.path.join(os.path.dirname(__file__), 'static')
+    
+    if path and os.path.exists(os.path.join(static_folder, path)):
+        return send_from_directory(static_folder, path)
+    else:
+        return send_from_directory(static_folder, 'index.html')
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
