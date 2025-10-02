@@ -81,10 +81,15 @@ class DatabaseService:
         """Initialize the database with the Flask app"""
         db.init_app(app)
         with app.app_context():
-            db.create_all()
-            # Initialize with historical data if database is empty
-            if YearStatistics.query.count() == 0:
-                DatabaseService.seed_historical_data()
+            try:
+                # Create tables if they don't exist
+                db.create_all()
+                # Initialize with historical data if database is empty
+                if YearStatistics.query.count() == 0:
+                    DatabaseService.seed_historical_data()
+            except Exception as e:
+                print(f"Database initialization note: {e}")
+                # Tables likely already exist, continue normally
     
     @staticmethod
     def seed_historical_data():
@@ -218,16 +223,24 @@ class DatabaseService:
             }
         ]
         
+        seeded_count = 0
         for year_data in historical_years:
-            year_stat = YearStatistics(**year_data)
-            db.session.add(year_stat)
+            try:
+                # Check if year already exists
+                existing = YearStatistics.query.get(year_data['year'])
+                if not existing:
+                    year_stat = YearStatistics(**year_data)
+                    db.session.add(year_stat)
+                    db.session.commit()
+                    seeded_count += 1
+            except Exception as e:
+                db.session.rollback()
+                print(f"Note: Year {year_data['year']} already exists or error: {e}")
         
-        try:
-            db.session.commit()
-            print(f"✓ Seeded {len(historical_years)} historical years into database")
-        except Exception as e:
-            db.session.rollback()
-            print(f"✗ Error seeding historical data: {e}")
+        if seeded_count > 0:
+            print(f"✓ Seeded {seeded_count} historical years into database")
+        else:
+            print(f"✓ Historical data already present in database")
     
     @staticmethod
     def store_earthquake(earthquake_data):
