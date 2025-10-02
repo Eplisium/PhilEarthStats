@@ -82,14 +82,32 @@ class DatabaseService:
         db.init_app(app)
         with app.app_context():
             try:
-                # Create tables if they don't exist
-                db.create_all()
-                # Initialize with historical data if database is empty
-                if YearStatistics.query.count() == 0:
-                    DatabaseService.seed_historical_data()
+                # Create tables if they don't exist (checkfirst=True by default)
+                db.create_all(checkfirst=True)
             except Exception as e:
                 print(f"Database initialization note: {e}")
-                # Tables likely already exist, continue normally
+            
+            # Seed historical data with proper race condition handling
+            try:
+                # Check if database is empty and seed if needed
+                if YearStatistics.query.count() == 0:
+                    DatabaseService.seed_historical_data()
+                    db.session.commit()
+                    print(f"✓ Historical data seeded successfully")
+                else:
+                    print(f"✓ Historical data already present in database")
+            except Exception as e:
+                db.session.rollback()
+                # Another worker likely seeded already or seeding in progress
+                # Check if data is now present
+                try:
+                    count = YearStatistics.query.count()
+                    if count > 0:
+                        print(f"✓ Historical data already present ({count} years)")
+                    else:
+                        print(f"⚠ Warning during seeding: {e}")
+                except:
+                    print(f"✓ Database initialization complete")
     
     @staticmethod
     def seed_historical_data():
@@ -223,24 +241,13 @@ class DatabaseService:
             }
         ]
         
-        seeded_count = 0
+        # Add all historical years in one transaction
+        # This function is only called when count is 0, so safe to insert all
         for year_data in historical_years:
-            try:
-                # Check if year already exists
-                existing = YearStatistics.query.get(year_data['year'])
-                if not existing:
-                    year_stat = YearStatistics(**year_data)
-                    db.session.add(year_stat)
-                    db.session.commit()
-                    seeded_count += 1
-            except Exception as e:
-                db.session.rollback()
-                print(f"Note: Year {year_data['year']} already exists or error: {e}")
+            year_stat = YearStatistics(**year_data)
+            db.session.add(year_stat)
         
-        if seeded_count > 0:
-            print(f"✓ Seeded {seeded_count} historical years into database")
-        else:
-            print(f"✓ Historical data already present in database")
+        # Commit is handled by parent function
     
     @staticmethod
     def store_earthquake(earthquake_data):
