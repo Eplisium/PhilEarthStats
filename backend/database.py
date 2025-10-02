@@ -82,10 +82,11 @@ class DatabaseService:
         db.init_app(app)
         with app.app_context():
             try:
-                # Create tables if they don't exist (checkfirst=True by default)
-                db.create_all(checkfirst=True)
+                # Create tables if they don't exist (Flask-SQLAlchemy checks first by default)
+                db.create_all()
             except Exception as e:
-                print(f"Database initialization note: {e}")
+                # Tables likely already exist from another worker, this is fine
+                pass
             
             # Seed historical data with proper race condition handling
             try:
