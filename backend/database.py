@@ -2,6 +2,7 @@ from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, timedelta
 from sqlalchemy import func, extract, and_
 import json
+import hashlib
 
 db = SQLAlchemy()
 
@@ -73,6 +74,83 @@ class YearStatistics(db.Model):
             'last_updated': self.last_updated.isoformat() if self.last_updated else None
         }
 
+class AnalysisCache(db.Model):
+    """Cache expensive computation results (Phase 4.1)"""
+    __tablename__ = 'analysis_cache'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    cache_key = db.Column(db.String(255), unique=True, nullable=False, index=True)
+    cache_type = db.Column(db.String(50), nullable=False)  # clusters, risk_scores, trends, etc.
+    data = db.Column(db.Text, nullable=False)  # JSON string
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    expires_at = db.Column(db.DateTime, nullable=False, index=True)
+    
+    def to_dict(self):
+        return {
+            'cache_key': self.cache_key,
+            'cache_type': self.cache_type,
+            'data': json.loads(self.data),
+            'created_at': self.created_at.isoformat(),
+            'expires_at': self.expires_at.isoformat()
+        }
+
+class AnalysisHistory(db.Model):
+    """Store AI analysis history for comparison (Phase 4.4)"""
+    __tablename__ = 'analysis_history'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    session_id = db.Column(db.String(100), nullable=False, index=True)  # For grouping user's analyses
+    model_used = db.Column(db.String(100), nullable=False)
+    period_days = db.Column(db.Integer, default=90)
+    total_count = db.Column(db.Integer)
+    max_magnitude = db.Column(db.Float)
+    avg_magnitude = db.Column(db.Float)
+    significant_count = db.Column(db.Integer)
+    total_energy = db.Column(db.Float)
+    
+    # Store key metrics as JSON for flexibility
+    regional_stats = db.Column(db.Text)  # JSON: Luzon, Visayas, Mindanao stats
+    risk_scores = db.Column(db.Text)  # JSON: Risk scores by region
+    historical_comparison = db.Column(db.Text)  # JSON: Comparison data
+    clusters_count = db.Column(db.Integer, default=0)
+    sequences_count = db.Column(db.Integer, default=0)
+    b_value = db.Column(db.Float)
+    trend = db.Column(db.String(50))  # Increasing, Decreasing, Stable
+    
+    # Store the full analysis text
+    analysis_text = db.Column(db.Text)
+    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    
+    def to_dict(self, include_full_text=False):
+        result = {
+            'id': self.id,
+            'session_id': self.session_id,
+            'model_used': self.model_used,
+            'period_days': self.period_days,
+            'statistics': {
+                'total_count': self.total_count,
+                'max_magnitude': self.max_magnitude,
+                'avg_magnitude': self.avg_magnitude,
+                'significant_count': self.significant_count,
+                'total_energy': self.total_energy
+            },
+            'regional_stats': json.loads(self.regional_stats) if self.regional_stats else None,
+            'risk_scores': json.loads(self.risk_scores) if self.risk_scores else None,
+            'historical_comparison': json.loads(self.historical_comparison) if self.historical_comparison else None,
+            'clusters_count': self.clusters_count,
+            'sequences_count': self.sequences_count,
+            'b_value': self.b_value,
+            'trend': self.trend,
+            'created_at': self.created_at.isoformat(),
+            'created_at_timestamp': int(self.created_at.timestamp() * 1000)
+        }
+        
+        if include_full_text:
+            result['analysis_text'] = self.analysis_text
+        
+        return result
+
 class DatabaseService:
     """Service class for database operations"""
     
@@ -109,6 +187,12 @@ class DatabaseService:
                         print(f"⚠ Warning during seeding: {e}")
                 except:
                     print(f"✓ Database initialization complete")
+            
+            # Clean up expired cache entries
+            try:
+                DatabaseService.cleanup_expired_cache()
+            except:
+                pass
     
     @staticmethod
     def seed_historical_data():
@@ -437,3 +521,181 @@ class DatabaseService:
         except Exception as e:
             print(f"Error getting calendar data: {e}")
             return []
+    
+    # ========== PHASE 4: CACHING & HISTORY ==========
+    
+    @staticmethod
+    def generate_cache_key(cache_type, params):
+        """Generate a unique cache key based on type and parameters"""
+        # Create a deterministic string from params
+        param_str = json.dumps(params, sort_keys=True)
+        # Hash it for a shorter key
+        hash_obj = hashlib.md5(param_str.encode())
+        return f"{cache_type}_{hash_obj.hexdigest()}"
+    
+    @staticmethod
+    def get_cached_data(cache_key):
+        """Retrieve cached data if not expired"""
+        try:
+            cache_entry = AnalysisCache.query.filter_by(cache_key=cache_key).first()
+            
+            if cache_entry and cache_entry.expires_at > datetime.utcnow():
+                return json.loads(cache_entry.data)
+            
+            # Clean up expired entry if found
+            if cache_entry:
+                db.session.delete(cache_entry)
+                db.session.commit()
+            
+            return None
+        except Exception as e:
+            print(f"Error getting cached data: {e}")
+            return None
+    
+    @staticmethod
+    def set_cached_data(cache_key, cache_type, data, ttl_hours=1):
+        """Store data in cache with expiration"""
+        try:
+            # Delete existing entry if present
+            existing = AnalysisCache.query.filter_by(cache_key=cache_key).first()
+            if existing:
+                db.session.delete(existing)
+            
+            # Create new cache entry
+            cache_entry = AnalysisCache(
+                cache_key=cache_key,
+                cache_type=cache_type,
+                data=json.dumps(data),
+                expires_at=datetime.utcnow() + timedelta(hours=ttl_hours)
+            )
+            
+            db.session.add(cache_entry)
+            db.session.commit()
+            return True
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error setting cached data: {e}")
+            return False
+    
+    @staticmethod
+    def cleanup_expired_cache():
+        """Remove expired cache entries"""
+        try:
+            deleted = AnalysisCache.query.filter(
+                AnalysisCache.expires_at < datetime.utcnow()
+            ).delete()
+            db.session.commit()
+            if deleted > 0:
+                print(f"✓ Cleaned up {deleted} expired cache entries")
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error cleaning up cache: {e}")
+    
+    @staticmethod
+    def invalidate_cache_by_type(cache_type):
+        """Invalidate all cache entries of a specific type"""
+        try:
+            deleted = AnalysisCache.query.filter_by(cache_type=cache_type).delete()
+            db.session.commit()
+            return deleted
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error invalidating cache: {e}")
+            return 0
+    
+    @staticmethod
+    def save_analysis_history(session_id, analysis_data):
+        """Save analysis to history (Phase 4.4)"""
+        try:
+            history_entry = AnalysisHistory(
+                session_id=session_id,
+                model_used=analysis_data.get('metadata', {}).get('model', 'unknown'),
+                period_days=analysis_data.get('statistics', {}).get('period_days', 90),
+                total_count=analysis_data.get('statistics', {}).get('total_count'),
+                max_magnitude=analysis_data.get('statistics', {}).get('max_magnitude'),
+                avg_magnitude=analysis_data.get('statistics', {}).get('avg_magnitude'),
+                significant_count=analysis_data.get('statistics', {}).get('significant_count'),
+                total_energy=analysis_data.get('statistics', {}).get('total_energy_joules'),
+                regional_stats=json.dumps(analysis_data.get('regional_breakdown')),
+                risk_scores=json.dumps(analysis_data.get('risk_scores')),
+                historical_comparison=json.dumps(analysis_data.get('historical_comparison')),
+                clusters_count=len(analysis_data.get('clusters', [])),
+                sequences_count=len(analysis_data.get('sequences', [])),
+                b_value=analysis_data.get('b_value'),
+                trend=analysis_data.get('trends', {}).get('overall_trend'),
+                analysis_text=analysis_data.get('analysis')
+            )
+            
+            db.session.add(history_entry)
+            db.session.commit()
+            
+            # Keep only last 20 analyses per session
+            DatabaseService.cleanup_old_history(session_id, keep_count=20)
+            
+            return history_entry.id
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error saving analysis history: {e}")
+            return None
+    
+    @staticmethod
+    def get_analysis_history(session_id, limit=20):
+        """Get analysis history for a session"""
+        try:
+            histories = AnalysisHistory.query.filter_by(session_id=session_id)\
+                .order_by(AnalysisHistory.created_at.desc())\
+                .limit(limit)\
+                .all()
+            
+            return [h.to_dict(include_full_text=False) for h in histories]
+        except Exception as e:
+            print(f"Error getting analysis history: {e}")
+            return []
+    
+    @staticmethod
+    def get_analysis_by_id(analysis_id):
+        """Get a specific analysis by ID"""
+        try:
+            history = AnalysisHistory.query.get(analysis_id)
+            return history.to_dict(include_full_text=True) if history else None
+        except Exception as e:
+            print(f"Error getting analysis by ID: {e}")
+            return None
+    
+    @staticmethod
+    def cleanup_old_history(session_id, keep_count=20):
+        """Keep only the most recent N analyses per session"""
+        try:
+            # Get all histories for this session ordered by date
+            all_histories = AnalysisHistory.query.filter_by(session_id=session_id)\
+                .order_by(AnalysisHistory.created_at.desc())\
+                .all()
+            
+            # Delete old ones beyond keep_count
+            if len(all_histories) > keep_count:
+                to_delete = all_histories[keep_count:]
+                for history in to_delete:
+                    db.session.delete(history)
+                db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error cleaning up old history: {e}")
+    
+    @staticmethod
+    def delete_analysis(analysis_id, session_id):
+        """Delete a specific analysis (with session validation)"""
+        try:
+            history = AnalysisHistory.query.filter_by(
+                id=analysis_id,
+                session_id=session_id
+            ).first()
+            
+            if history:
+                db.session.delete(history)
+                db.session.commit()
+                return True
+            return False
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error deleting analysis: {e}")
+            return False

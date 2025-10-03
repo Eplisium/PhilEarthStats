@@ -6,9 +6,12 @@ from functools import lru_cache
 import time
 import pytz
 import os
+import math
+from collections import defaultdict
 from dotenv import load_dotenv
 from database import db, DatabaseService, EarthquakeEvent, YearStatistics
 from ai_config import get_available_models, get_model_config, validate_model, DEFAULT_MODEL, FALLBACK_MODELS
+from ai_prompts import build_analysis_prompt, get_system_prompt, get_prompt_config, PROMPT_VERSION
 
 # Load environment variables
 load_dotenv()
@@ -902,12 +905,268 @@ def analyze_with_ai():
         if not validate_model(selected_model):
             selected_model = DEFAULT_MODEL
         
-        # Get all earthquake data
+        # Helper function to calculate seismic energy
+        def calculate_seismic_energy(magnitude):
+            """Calculate seismic energy in joules using magnitude"""
+            if magnitude is None:
+                return 0
+            # Energy (joules) = 10^(1.5 * M + 4.8)
+            return 10 ** (1.5 * magnitude + 4.8)
+        
+        # Helper function to classify region
+        def classify_region(latitude, longitude):
+            """Classify earthquake by Philippine region"""
+            if latitude >= 14.0:
+                return 'Luzon'
+            elif latitude >= 9.5:
+                return 'Visayas'
+            else:
+                return 'Mindanao'
+        
+        # Helper function to detect earthquake clusters (simplified DBSCAN-like approach)
+        def detect_clusters(earthquakes, eps=0.5, min_samples=3):
+            """Detect spatial clusters of earthquakes"""
+            clusters = []
+            visited = set()
+            
+            for i, eq in enumerate(earthquakes):
+                if i in visited or eq['magnitude'] is None:
+                    continue
+                
+                # Find neighbors within eps degrees
+                neighbors = []
+                for j, other_eq in enumerate(earthquakes):
+                    if j == i or other_eq['magnitude'] is None:
+                        continue
+                    
+                    # Calculate distance (simplified Euclidean)
+                    dist = math.sqrt(
+                        (eq['latitude'] - other_eq['latitude'])**2 + 
+                        (eq['longitude'] - other_eq['longitude'])**2
+                    )
+                    
+                    if dist <= eps:
+                        neighbors.append(j)
+                
+                # If enough neighbors, it's a cluster
+                if len(neighbors) >= min_samples:
+                    cluster = {
+                        'center_lat': sum(earthquakes[j]['latitude'] for j in neighbors) / len(neighbors),
+                        'center_lon': sum(earthquakes[j]['longitude'] for j in neighbors) / len(neighbors),
+                        'count': len(neighbors),
+                        'max_magnitude': max(earthquakes[j]['magnitude'] for j in neighbors if earthquakes[j]['magnitude']),
+                        'avg_magnitude': sum(earthquakes[j]['magnitude'] for j in neighbors if earthquakes[j]['magnitude']) / len([earthquakes[j] for j in neighbors if earthquakes[j]['magnitude']]),
+                        'region': eq['region'],
+                        'earthquakes': neighbors
+                    }
+                    clusters.append(cluster)
+                    visited.update(neighbors)
+            
+            return clusters
+        
+        # Helper function to detect mainshock-aftershock sequences
+        def detect_sequences(earthquakes, time_window_days=30, distance_threshold=1.0):
+            """Detect mainshock-aftershock sequences"""
+            sequences = []
+            sorted_eqs = sorted(earthquakes, key=lambda x: x['magnitude'] or 0, reverse=True)
+            processed = set()
+            
+            for mainshock in sorted_eqs[:10]:  # Check top 10 largest events
+                if mainshock['magnitude'] is None or mainshock['magnitude'] < 4.0:
+                    continue
+                
+                mainshock_idx = earthquakes.index(mainshock)
+                if mainshock_idx in processed:
+                    continue
+                
+                # Find potential aftershocks
+                aftershocks = []
+                mainshock_time = datetime.strptime(mainshock['time'], '%Y-%m-%d %H:%M:%S UTC')
+                
+                for i, eq in enumerate(earthquakes):
+                    if i == mainshock_idx or eq['magnitude'] is None or i in processed:
+                        continue
+                    
+                    eq_time = datetime.strptime(eq['time'], '%Y-%m-%d %H:%M:%S UTC')
+                    time_diff = abs((eq_time - mainshock_time).days)
+                    
+                    # Calculate distance
+                    dist = math.sqrt(
+                        (mainshock['latitude'] - eq['latitude'])**2 + 
+                        (mainshock['longitude'] - eq['longitude'])**2
+                    )
+                    
+                    # Aftershock criteria: within time window, nearby, smaller magnitude
+                    if (time_diff <= time_window_days and 
+                        dist <= distance_threshold and 
+                        eq['magnitude'] < mainshock['magnitude']):
+                        aftershocks.append(eq)
+                
+                if len(aftershocks) >= 3:
+                    sequences.append({
+                        'mainshock': mainshock,
+                        'aftershock_count': len(aftershocks),
+                        'largest_aftershock': max(aftershocks, key=lambda x: x['magnitude'] or 0),
+                        'duration_days': time_window_days,
+                        'location': mainshock['place']
+                    })
+                    processed.add(mainshock_idx)
+            
+            return sequences
+        
+        # Helper function to calculate regional risk scores
+        def calculate_risk_scores(regional_stats, regional_data):
+            """Calculate risk scores (0-100) for each region"""
+            risk_scores = {}
+            
+            for region, stats in regional_stats.items():
+                # Factors for risk calculation
+                activity_score = min(stats['count'] / 10, 30)  # Max 30 points
+                magnitude_score = min(stats['avg_magnitude'] * 5, 25)  # Max 25 points
+                significant_score = min(stats['significant_count'] * 10, 25)  # Max 25 points
+                shallow_ratio = (stats['very_shallow'] + stats['shallow']) / max(stats['count'], 1)
+                depth_score = shallow_ratio * 20  # Max 20 points
+                
+                total_score = activity_score + magnitude_score + significant_score + depth_score
+                
+                # Determine risk level
+                if total_score >= 70:
+                    risk_level = 'High'
+                    risk_color = 'red'
+                elif total_score >= 50:
+                    risk_level = 'Elevated'
+                    risk_color = 'orange'
+                elif total_score >= 30:
+                    risk_level = 'Moderate'
+                    risk_color = 'yellow'
+                else:
+                    risk_level = 'Low'
+                    risk_color = 'green'
+                
+                risk_scores[region] = {
+                    'score': round(total_score, 1),
+                    'level': risk_level,
+                    'color': risk_color,
+                    'factors': {
+                        'activity': round(activity_score, 1),
+                        'magnitude': round(magnitude_score, 1),
+                        'significant_events': round(significant_score, 1),
+                        'shallow_depth': round(depth_score, 1)
+                    }
+                }
+            
+            return risk_scores
+        
+        # Helper function to analyze trends
+        def analyze_trends(earthquakes, period_days=90):
+            """Analyze temporal trends in seismic activity"""
+            # Split into time segments
+            segment_days = 30
+            segments = []
+            
+            for i in range(0, period_days, segment_days):
+                segment_start = datetime.utcnow() - timedelta(days=period_days-i)
+                segment_end = segment_start + timedelta(days=segment_days)
+                
+                segment_eqs = [
+                    eq for eq in earthquakes 
+                    if segment_start <= datetime.strptime(eq['time'], '%Y-%m-%d %H:%M:%S UTC') < segment_end
+                ]
+                
+                segment_mags = [eq['magnitude'] for eq in segment_eqs if eq['magnitude']]
+                
+                segments.append({
+                    'period': f"Days {i+1}-{min(i+segment_days, period_days)}",
+                    'count': len(segment_eqs),
+                    'avg_magnitude': sum(segment_mags) / len(segment_mags) if segment_mags else 0,
+                    'significant_count': sum(1 for m in segment_mags if m >= 4.5)
+                })
+            
+            # Determine trend
+            if len(segments) >= 2:
+                recent_count = segments[-1]['count']
+                older_count = segments[0]['count']
+                
+                if recent_count > older_count * 1.2:
+                    trend = 'Increasing'
+                elif recent_count < older_count * 0.8:
+                    trend = 'Decreasing'
+                else:
+                    trend = 'Stable'
+            else:
+                trend = 'Insufficient data'
+            
+            return {
+                'segments': segments,
+                'overall_trend': trend
+            }
+        
+        # Helper function to calculate Gutenberg-Richter b-value
+        def calculate_b_value(magnitudes):
+            """Calculate b-value from magnitude distribution"""
+            if len(magnitudes) < 10:
+                return None
+            
+            # Filter magnitudes >= 3.0 for better statistics
+            filtered_mags = [m for m in magnitudes if m >= 3.0]
+            
+            if len(filtered_mags) < 10:
+                return None
+            
+            # Simple b-value estimation: b ≈ log10(e) / (mean_magnitude - min_magnitude)
+            mean_mag = sum(filtered_mags) / len(filtered_mags)
+            min_mag = min(filtered_mags)
+            
+            if mean_mag - min_mag == 0:
+                return None
+            
+            b_value = 1.0 / (mean_mag - min_mag) / math.log(10)
+            
+            return round(b_value, 2)
+        
+        # Helper function to correlate with volcanoes
+        def correlate_with_volcanoes(earthquakes):
+            """Find earthquakes near active volcanoes"""
+            # Volcano locations (from the existing volcano data)
+            volcanoes = [
+                {'name': 'Mayon', 'lat': 13.2572, 'lon': 123.6856},
+                {'name': 'Taal', 'lat': 14.0021, 'lon': 120.9937},
+                {'name': 'Pinatubo', 'lat': 15.1300, 'lon': 120.3500},
+                {'name': 'Bulusan', 'lat': 12.7700, 'lon': 124.0500},
+                {'name': 'Kanlaon', 'lat': 10.4120, 'lon': 123.1320},
+                {'name': 'Hibok-Hibok', 'lat': 9.2030, 'lon': 124.6730}
+            ]
+            
+            volcano_correlation = {}
+            threshold = 0.5  # degrees (~55 km)
+            
+            for volcano in volcanoes:
+                nearby_eqs = []
+                for eq in earthquakes:
+                    dist = math.sqrt(
+                        (eq['latitude'] - volcano['lat'])**2 + 
+                        (eq['longitude'] - volcano['lon'])**2
+                    )
+                    if dist <= threshold:
+                        nearby_eqs.append(eq)
+                
+                if nearby_eqs:
+                    nearby_mags = [eq['magnitude'] for eq in nearby_eqs if eq['magnitude']]
+                    volcano_correlation[volcano['name']] = {
+                        'earthquake_count': len(nearby_eqs),
+                        'max_magnitude': max(nearby_mags) if nearby_mags else 0,
+                        'avg_magnitude': sum(nearby_mags) / len(nearby_mags) if nearby_mags else 0,
+                        'significant_count': sum(1 for m in nearby_mags if m >= 4.0)
+                    }
+            
+            return volcano_correlation
+        
+        # Get all earthquake data (90 days for better analysis)
         def fetch_all_data():
-            # Fetch earthquakes from last 30 days for comprehensive analysis
+            # Fetch earthquakes from last 90 days for comprehensive analysis
             params = {
                 'format': 'geojson',
-                'starttime': (datetime.utcnow() - timedelta(days=30)).strftime('%Y-%m-%d'),
+                'starttime': (datetime.utcnow() - timedelta(days=90)).strftime('%Y-%m-%d'),
                 'endtime': datetime.utcnow().strftime('%Y-%m-%d'),
                 **PHILIPPINES_BOUNDS,
                 'orderby': 'time'
@@ -917,37 +1176,76 @@ def analyze_with_ai():
             response.raise_for_status()
             return response.json()
         
+        # Fetch historical data for comparison
+        def fetch_historical_data(days_back):
+            """Fetch historical data from specified period"""
+            end_date = datetime.utcnow() - timedelta(days=days_back)
+            start_date = end_date - timedelta(days=90)
+            params = {
+                'format': 'geojson',
+                'starttime': start_date.strftime('%Y-%m-%d'),
+                'endtime': end_date.strftime('%Y-%m-%d'),
+                **PHILIPPINES_BOUNDS,
+                'orderby': 'time'
+            }
+            
+            try:
+                response = requests.get(USGS_API, params=params, timeout=10)
+                response.raise_for_status()
+                return response.json()
+            except:
+                return None
+        
         data = fetch_all_data()
         
-        # Process earthquake data
+        # Process earthquake data with regional classification
         earthquakes = []
+        regional_data = {'Luzon': [], 'Visayas': [], 'Mindanao': []}
+        
         for feature in data['features']:
             props = feature['properties']
             coords = feature['geometry']['coordinates']
-            earthquakes.append({
-                'magnitude': props.get('mag'),
+            latitude = coords[1]
+            longitude = coords[0]
+            magnitude = props.get('mag')
+            depth = coords[2]
+            
+            region = classify_region(latitude, longitude)
+            
+            eq_data = {
+                'magnitude': magnitude,
                 'place': props.get('place'),
                 'time': datetime.fromtimestamp(props.get('time') / 1000).strftime('%Y-%m-%d %H:%M:%S UTC'),
-                'depth': coords[2],
-                'latitude': coords[1],
-                'longitude': coords[0],
+                'depth': depth,
+                'latitude': latitude,
+                'longitude': longitude,
                 'significance': props.get('sig'),
                 'felt': props.get('felt'),
-                'tsunami': props.get('tsunami')
-            })
+                'tsunami': props.get('tsunami'),
+                'region': region,
+                'energy': calculate_seismic_energy(magnitude)
+            }
+            
+            earthquakes.append(eq_data)
+            regional_data[region].append(eq_data)
         
-        # Calculate statistics
+        # Calculate overall statistics
         magnitudes = [eq['magnitude'] for eq in earthquakes if eq['magnitude']]
         depths = [eq['depth'] for eq in earthquakes]
+        energies = [eq['energy'] for eq in earthquakes]
         
         stats = {
             'total_count': len(earthquakes),
+            'period_days': 90,
             'avg_magnitude': sum(magnitudes) / len(magnitudes) if magnitudes else 0,
             'max_magnitude': max(magnitudes) if magnitudes else 0,
             'min_magnitude': min(magnitudes) if magnitudes else 0,
             'avg_depth': sum(depths) / len(depths) if depths else 0,
             'max_depth': max(depths) if depths else 0,
-            'shallow_count': sum(1 for d in depths if d < 70),
+            'total_energy_joules': sum(energies),
+            'avg_daily_energy': sum(energies) / 90 if energies else 0,
+            'very_shallow_count': sum(1 for d in depths if d < 10),
+            'shallow_count': sum(1 for d in depths if 10 <= d < 70),
             'intermediate_count': sum(1 for d in depths if 70 <= d < 300),
             'deep_count': sum(1 for d in depths if d >= 300),
             'significant_count': sum(1 for m in magnitudes if m >= 4.5),
@@ -955,17 +1253,107 @@ def analyze_with_ai():
             'minor_count': sum(1 for m in magnitudes if m < 3.0)
         }
         
-        # Get most significant earthquakes
+        # Calculate regional statistics
+        regional_stats = {}
+        for region, region_eqs in regional_data.items():
+            region_mags = [eq['magnitude'] for eq in region_eqs if eq['magnitude']]
+            region_depths = [eq['depth'] for eq in region_eqs]
+            region_energies = [eq['energy'] for eq in region_eqs]
+            
+            regional_stats[region] = {
+                'count': len(region_eqs),
+                'percentage': round(len(region_eqs) / len(earthquakes) * 100, 1) if earthquakes else 0,
+                'avg_magnitude': round(sum(region_mags) / len(region_mags), 2) if region_mags else 0,
+                'max_magnitude': round(max(region_mags), 1) if region_mags else 0,
+                'avg_depth': round(sum(region_depths) / len(region_depths), 1) if region_depths else 0,
+                'total_energy_joules': sum(region_energies),
+                'significant_count': sum(1 for m in region_mags if m >= 4.5),
+                'very_shallow': sum(1 for d in region_depths if d < 10),
+                'shallow': sum(1 for d in region_depths if 10 <= d < 70),
+                'intermediate': sum(1 for d in region_depths if 70 <= d < 300),
+                'deep': sum(1 for d in region_depths if d >= 300)
+            }
+        
+        # Fetch historical data for comparison
+        previous_period_data = fetch_historical_data(90)  # Previous 90 days
+        last_year_data = fetch_historical_data(365)  # Same period last year
+        
+        # Calculate historical comparison
+        historical_comparison = {}
+        
+        if previous_period_data:
+            prev_count = len(previous_period_data['features'])
+            prev_mags = [f['properties'].get('mag') for f in previous_period_data['features'] if f['properties'].get('mag')]
+            prev_avg_mag = sum(prev_mags) / len(prev_mags) if prev_mags else 0
+            
+            count_change = ((len(earthquakes) - prev_count) / prev_count * 100) if prev_count > 0 else 0
+            mag_change = stats['avg_magnitude'] - prev_avg_mag
+            
+            historical_comparison['vs_previous_period'] = {
+                'count_change_percent': round(count_change, 1),
+                'magnitude_change': round(mag_change, 2),
+                'previous_count': prev_count,
+                'previous_avg_magnitude': round(prev_avg_mag, 2)
+            }
+        
+        if last_year_data:
+            ly_count = len(last_year_data['features'])
+            ly_mags = [f['properties'].get('mag') for f in last_year_data['features'] if f['properties'].get('mag')]
+            ly_avg_mag = sum(ly_mags) / len(ly_mags) if ly_mags else 0
+            
+            count_change = ((len(earthquakes) - ly_count) / ly_count * 100) if ly_count > 0 else 0
+            mag_change = stats['avg_magnitude'] - ly_avg_mag
+            
+            historical_comparison['vs_last_year'] = {
+                'count_change_percent': round(count_change, 1),
+                'magnitude_change': round(mag_change, 2),
+                'last_year_count': ly_count,
+                'last_year_avg_magnitude': round(ly_avg_mag, 2)
+            }
+        
+        # ===== PHASE 2: ADVANCED ANALYTICS =====
+        
+        # Detect clusters
+        clusters = detect_clusters(earthquakes)
+        
+        # Detect mainshock-aftershock sequences
+        sequences = detect_sequences(earthquakes)
+        
+        # Calculate risk scores
+        risk_scores = calculate_risk_scores(regional_stats, regional_data)
+        
+        # Analyze trends
+        trends = analyze_trends(earthquakes)
+        
+        # Calculate Gutenberg-Richter b-value
+        b_value = calculate_b_value(magnitudes)
+        
+        # Correlate with volcanoes
+        volcano_correlation = correlate_with_volcanoes(earthquakes)
+        
+        # Get most significant earthquakes with region info
         significant_earthquakes = sorted(
             [eq for eq in earthquakes if eq['magnitude'] and eq['magnitude'] >= 4.0],
             key=lambda x: x['magnitude'],
             reverse=True
         )[:10]
         
-        # Create comprehensive prompt for LLM
+        # Format energy values for display
+        def format_energy(joules):
+            """Format energy in scientific notation"""
+            if joules >= 1e15:
+                return f"{joules/1e15:.2f} × 10¹⁵ joules"
+            elif joules >= 1e12:
+                return f"{joules/1e12:.2f} × 10¹² joules"
+            elif joules >= 1e9:
+                return f"{joules/1e9:.2f} × 10⁹ joules"
+            else:
+                return f"{joules:.2e} joules"
+        
+        # Create comprehensive prompt for LLM with Phase 1 enhancements
         prompt = f"""You are a seismologist analyzing earthquake data for the Philippines region. Provide a comprehensive analysis based on the following data:
 
-**Period**: Last 30 days
+**Analysis Period**: Last 90 days (extended timeframe for better trend detection)
 
 **Overall Statistics**:
 - Total earthquakes detected: {stats['total_count']}
@@ -974,29 +1362,141 @@ def analyze_with_ai():
 - Minimum magnitude: {stats['min_magnitude']:.2f}
 - Average depth: {stats['avg_depth']:.2f} km
 - Maximum depth: {stats['max_depth']:.2f} km
+- **Total seismic energy released**: {format_energy(stats['total_energy_joules'])}
+- **Average daily energy release**: {format_energy(stats['avg_daily_energy'])}
 
-**Earthquake Distribution**:
+**Earthquake Distribution by Magnitude**:
 - Significant (M ≥ 4.5): {stats['significant_count']}
 - Moderate (3.0 ≤ M < 4.5): {stats['moderate_count']}
 - Minor (M < 3.0): {stats['minor_count']}
 
-**Depth Distribution**:
-- Shallow (< 70 km): {stats['shallow_count']}
-- Intermediate (70-300 km): {stats['intermediate_count']}
-- Deep (≥ 300 km): {stats['deep_count']}
+**Enhanced Depth Distribution**:
+- Very Shallow (< 10 km): {stats['very_shallow_count']} - High damage potential
+- Shallow (10-70 km): {stats['shallow_count']} - Moderate damage potential
+- Intermediate (70-300 km): {stats['intermediate_count']} - Lower surface impact
+- Deep (≥ 300 km): {stats['deep_count']} - Minimal surface impact
 
-**Top 10 Significant Earthquakes**:
-{chr(10).join([f"{i+1}. M{eq['magnitude']:.1f} - {eq['place']} - {eq['time']} - Depth: {eq['depth']:.1f}km" for i, eq in enumerate(significant_earthquakes)])}
+**Regional Breakdown**:
 
-Provide a detailed analysis covering:
-1. Overall seismic activity assessment (is it normal, elevated, concerning?)
-2. Patterns and trends observed (clustering, depth patterns, magnitude distribution)
-3. Geographic distribution and hot spots
-4. Risk assessment and potential concerns
-5. Actionable recommendations for residents and authorities
-6. Any notable events or sequences (aftershocks, swarms, etc.)
+**Luzon Region** (Northern Philippines):
+- Event count: {regional_stats['Luzon']['count']} ({regional_stats['Luzon']['percentage']}% of total)
+- Average magnitude: M {regional_stats['Luzon']['avg_magnitude']}
+- Maximum magnitude: M {regional_stats['Luzon']['max_magnitude']}
+- Average depth: {regional_stats['Luzon']['avg_depth']} km
+- Significant events (M ≥ 4.5): {regional_stats['Luzon']['significant_count']}
+- Total energy released: {format_energy(regional_stats['Luzon']['total_energy_joules'])}
+- Depth profile: Very Shallow: {regional_stats['Luzon']['very_shallow']}, Shallow: {regional_stats['Luzon']['shallow']}, Intermediate: {regional_stats['Luzon']['intermediate']}, Deep: {regional_stats['Luzon']['deep']}
 
-Be specific, professional, and provide context.
+**Visayas Region** (Central Philippines):
+- Event count: {regional_stats['Visayas']['count']} ({regional_stats['Visayas']['percentage']}% of total)
+- Average magnitude: M {regional_stats['Visayas']['avg_magnitude']}
+- Maximum magnitude: M {regional_stats['Visayas']['max_magnitude']}
+- Average depth: {regional_stats['Visayas']['avg_depth']} km
+- Significant events (M ≥ 4.5): {regional_stats['Visayas']['significant_count']}
+- Total energy released: {format_energy(regional_stats['Visayas']['total_energy_joules'])}
+- Depth profile: Very Shallow: {regional_stats['Visayas']['very_shallow']}, Shallow: {regional_stats['Visayas']['shallow']}, Intermediate: {regional_stats['Visayas']['intermediate']}, Deep: {regional_stats['Visayas']['deep']}
+
+**Mindanao Region** (Southern Philippines):
+- Event count: {regional_stats['Mindanao']['count']} ({regional_stats['Mindanao']['percentage']}% of total)
+- Average magnitude: M {regional_stats['Mindanao']['avg_magnitude']}
+- Maximum magnitude: M {regional_stats['Mindanao']['max_magnitude']}
+- Average depth: {regional_stats['Mindanao']['avg_depth']} km
+- Significant events (M ≥ 4.5): {regional_stats['Mindanao']['significant_count']}
+- Total energy released: {format_energy(regional_stats['Mindanao']['total_energy_joules'])}
+- Depth profile: Very Shallow: {regional_stats['Mindanao']['very_shallow']}, Shallow: {regional_stats['Mindanao']['shallow']}, Intermediate: {regional_stats['Mindanao']['intermediate']}, Deep: {regional_stats['Mindanao']['deep']}
+
+**Historical Comparison**:"""
+
+        # Add historical comparison data to prompt
+        if 'vs_previous_period' in historical_comparison:
+            prev = historical_comparison['vs_previous_period']
+            prompt += f"""
+
+*Compared to Previous 90-Day Period*:
+- Earthquake count change: {prev['count_change_percent']:+.1f}% (was {prev['previous_count']} events)
+- Average magnitude change: {prev['magnitude_change']:+.2f} (was M {prev['previous_avg_magnitude']})
+- Trend: {'Increasing activity' if prev['count_change_percent'] > 10 else 'Decreasing activity' if prev['count_change_percent'] < -10 else 'Stable activity'}"""
+
+        if 'vs_last_year' in historical_comparison:
+            ly = historical_comparison['vs_last_year']
+            prompt += f"""
+
+*Compared to Same Period Last Year*:
+- Earthquake count change: {ly['count_change_percent']:+.1f}% (was {ly['last_year_count']} events)
+- Average magnitude change: {ly['magnitude_change']:+.2f} (was M {ly['last_year_avg_magnitude']})
+- Year-over-year trend: {'Higher than last year' if ly['count_change_percent'] > 5 else 'Lower than last year' if ly['count_change_percent'] < -5 else 'Similar to last year'}"""
+
+        prompt += f"""
+
+**Top 10 Most Significant Earthquakes**:
+{chr(10).join([f"{i+1}. M{eq['magnitude']:.1f} - {eq['region']} - {eq['place']} - {eq['time']} - Depth: {eq['depth']:.1f}km - Energy: {format_energy(eq['energy'])}" for i, eq in enumerate(significant_earthquakes)])}
+
+**PHASE 2: ADVANCED ANALYTICS**
+
+**Seismic Clustering Analysis**:
+- **Total clusters detected**: {len(clusters)}
+{chr(10).join([f"  - Cluster {i+1}: {cluster['count']} events in {cluster['region']}, Center: ({cluster['center_lat']:.2f}°N, {cluster['center_lon']:.2f}°E), Max Mag: M{cluster['max_magnitude']:.1f}, Avg: M{cluster['avg_magnitude']:.1f}" for i, cluster in enumerate(clusters[:5])]) if clusters else "  - No significant clusters detected"}
+
+**Mainshock-Aftershock Sequences**:
+- **Total sequences identified**: {len(sequences)}
+{chr(10).join([f"  - Sequence {i+1}: M{seq['mainshock']['magnitude']:.1f} mainshock at {seq['location']}, {seq['aftershock_count']} aftershocks, Largest aftershock: M{seq['largest_aftershock']['magnitude']:.1f}" for i, seq in enumerate(sequences)]) if sequences else "  - No significant sequences detected"}
+
+**Regional Risk Assessment** (Score 0-100):
+- **Luzon**: Risk Score = {risk_scores['Luzon']['score']} ({risk_scores['Luzon']['level']})
+  - Activity: {risk_scores['Luzon']['factors']['activity']}, Magnitude: {risk_scores['Luzon']['factors']['magnitude']}, Significant Events: {risk_scores['Luzon']['factors']['significant_events']}, Shallow Depth: {risk_scores['Luzon']['factors']['shallow_depth']}
+- **Visayas**: Risk Score = {risk_scores['Visayas']['score']} ({risk_scores['Visayas']['level']})
+  - Activity: {risk_scores['Visayas']['factors']['activity']}, Magnitude: {risk_scores['Visayas']['factors']['magnitude']}, Significant Events: {risk_scores['Visayas']['factors']['significant_events']}, Shallow Depth: {risk_scores['Visayas']['factors']['shallow_depth']}
+- **Mindanao**: Risk Score = {risk_scores['Mindanao']['score']} ({risk_scores['Mindanao']['level']})
+  - Activity: {risk_scores['Mindanao']['factors']['activity']}, Magnitude: {risk_scores['Mindanao']['factors']['magnitude']}, Significant Events: {risk_scores['Mindanao']['factors']['significant_events']}, Shallow Depth: {risk_scores['Mindanao']['factors']['shallow_depth']}
+
+**Temporal Trends**:
+- **Overall trend**: {trends['overall_trend']}
+- Segment breakdown:
+{chr(10).join([f"  - {seg['period']}: {seg['count']} events (Avg M{seg['avg_magnitude']:.1f}), {seg['significant_count']} significant" for seg in trends['segments']])}
+
+**Gutenberg-Richter Analysis**:
+- **b-value**: {b_value if b_value else 'Insufficient data (need M≥3.0 events)'}
+  - Normal b-value ~ 1.0. Higher values indicate more small earthquakes relative to large ones; lower values may indicate stress accumulation.
+
+**Volcano-Earthquake Correlation**:
+{chr(10).join([f"  - **{volcano}**: {data['earthquake_count']} earthquakes nearby, Max: M{data['max_magnitude']:.1f}, Avg: M{data['avg_magnitude']:.1f}, Significant: {data['significant_count']}" for volcano, data in volcano_correlation.items()]) if volcano_correlation else "  - No significant seismic activity near monitored volcanoes"}
+
+Based on this comprehensive 90-day dataset with PHASE 1 enhancements (regional analysis, historical comparison, seismic energy) and PHASE 2 advanced analytics (clustering, sequence detection, risk scoring, trend analysis, Gutenberg-Richter, volcano correlation), provide a detailed, structured analysis covering:
+
+## Executive Summary
+Provide a concise overview (3-4 sentences) with the most critical findings and overall risk level.
+
+## Seismic Activity Overview
+Assess whether current activity is normal, elevated, or concerning compared to historical baselines.
+
+## Regional Analysis
+Compare seismic patterns across Luzon, Visayas, and Mindanao. Discuss the risk scores and what they mean for each region.
+
+## Advanced Pattern Recognition
+Analyze the detected clusters and aftershock sequences. What do these patterns tell us about ongoing seismic processes?
+
+## Temporal Trends
+Examine the trend analysis segments. Are we seeing increasing, decreasing, or stable activity? What might this indicate?
+
+## Depth and Energy Analysis
+Discuss depth distributions and energy release patterns. Are shallow, high-damage-potential earthquakes a concern?
+
+## Statistical Insights
+Interpret the b-value (if available). What does it tell us about the stress state in the region?
+
+## Volcano-Earthquake Relationships
+Analyze seismic activity near volcanoes. Are there any concerning correlations that might indicate volcanic unrest?
+
+## Risk Assessment by Region
+Provide detailed risk assessments for Luzon, Visayas, and Mindanao based on all available data.
+
+## Recommendations
+Provide specific, actionable recommendations:
+- For residents in each region
+- For local authorities and emergency services
+- For monitoring and preparedness efforts
+
+Be specific, professional, data-driven, and structure your response with clear headings and sections.
 
 **FORMATTING REQUIREMENTS - CRITICAL**:
 - Use proper markdown formatting throughout your response
@@ -1078,19 +1578,68 @@ Your response will be rendered with ReactMarkdown, so proper markdown syntax is 
                 'error': f'All AI models are currently unavailable. Last error: {last_error}'
             }), 503
         
-        return jsonify({
+        # Prepare response data
+        response_data = {
             'success': True,
             'analysis': analysis,
             'statistics': stats,
+            'regional_breakdown': regional_stats,
+            'historical_comparison': historical_comparison,
+            'risk_scores': risk_scores,
+            'clusters': [{
+                'center_lat': c['center_lat'],
+                'center_lon': c['center_lon'],
+                'count': c['count'],
+                'max_magnitude': c['max_magnitude'],
+                'avg_magnitude': c['avg_magnitude'],
+                'region': c['region']
+            } for c in clusters],
+            'sequences': [{
+                'mainshock_magnitude': s['mainshock']['magnitude'],
+                'mainshock_location': s['location'],
+                'aftershock_count': s['aftershock_count'],
+                'largest_aftershock_magnitude': s['largest_aftershock']['magnitude']
+            } for s in sequences],
+            'trends': trends,
+            'b_value': b_value,
+            'volcano_correlation': volcano_correlation,
             'significant_earthquakes': significant_earthquakes[:5],
             'metadata': {
                 'model': used_model,
                 'generated': int(time.time() * 1000),
                 'server_time_utc': datetime.utcnow().isoformat() + 'Z',
-                'period': '30 days',
-                'data_points': len(earthquakes)
+                'period': '90 days',
+                'data_points': len(earthquakes),
+                'phase': 'Phase 4 - Complete with Caching & History',
+                'features': [
+                    'Extended 90-day analysis',
+                    'Regional breakdown (Luzon/Visayas/Mindanao)',
+                    'Seismic energy calculations',
+                    'Historical comparison',
+                    'Enhanced depth analysis',
+                    'Spatial clustering detection',
+                    'Mainshock-aftershock sequence identification',
+                    'Regional risk scoring (0-100)',
+                    'Temporal trend analysis',
+                    'Gutenberg-Richter b-value',
+                    'Volcano-earthquake correlation',
+                    'Structured AI output',
+                    'Analysis history tracking',
+                    'Performance optimizations'
+                ]
             }
-        })
+        }
+        
+        # Phase 4.4: Save analysis to history if session_id provided
+        session_id = request_data.get('session_id')
+        if session_id:
+            try:
+                DatabaseService.save_analysis_history(session_id, response_data)
+            except Exception as e:
+                print(f"Warning: Failed to save analysis history: {e}")
+                # Don't fail the request if history saving fails
+        
+        return jsonify(response_data)
     
     except requests.RequestException as e:
         return jsonify({
@@ -1272,6 +1821,98 @@ def sync_historical_data():
         return jsonify({
             'success': False,
             'error': f'Failed to sync historical data: {str(e)}'
+        }), 500
+
+# ===== PHASE 4: AI ANALYSIS HISTORY ENDPOINTS =====
+
+@app.route('/api/ai/history', methods=['GET'])
+def get_ai_history():
+    """Get AI analysis history for a session"""
+    try:
+        session_id = request.args.get('session_id')
+        if not session_id:
+            return jsonify({
+                'success': False,
+                'error': 'session_id parameter is required'
+            }), 400
+        
+        limit = request.args.get('limit', 20, type=int)
+        history = DatabaseService.get_analysis_history(session_id, limit=limit)
+        
+        return jsonify({
+            'success': True,
+            'count': len(history),
+            'history': history,
+            'metadata': {
+                'generated': int(time.time() * 1000),
+                'server_time_utc': datetime.utcnow().isoformat() + 'Z'
+            }
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Failed to fetch analysis history: {str(e)}'
+        }), 500
+
+@app.route('/api/ai/history/<int:analysis_id>', methods=['GET'])
+def get_ai_history_by_id(analysis_id):
+    """Get a specific AI analysis by ID"""
+    try:
+        analysis = DatabaseService.get_analysis_by_id(analysis_id)
+        
+        if not analysis:
+            return jsonify({
+                'success': False,
+                'error': 'Analysis not found'
+            }), 404
+        
+        return jsonify({
+            'success': True,
+            'analysis': analysis,
+            'metadata': {
+                'generated': int(time.time() * 1000),
+                'server_time_utc': datetime.utcnow().isoformat() + 'Z'
+            }
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Failed to fetch analysis: {str(e)}'
+        }), 500
+
+@app.route('/api/ai/history/<int:analysis_id>', methods=['DELETE'])
+def delete_ai_history(analysis_id):
+    """Delete a specific AI analysis"""
+    try:
+        request_data = request.get_json() or {}
+        session_id = request_data.get('session_id')
+        
+        if not session_id:
+            return jsonify({
+                'success': False,
+                'error': 'session_id is required'
+            }), 400
+        
+        success = DatabaseService.delete_analysis(analysis_id, session_id)
+        
+        if not success:
+            return jsonify({
+                'success': False,
+                'error': 'Analysis not found or unauthorized'
+            }), 404
+        
+        return jsonify({
+            'success': True,
+            'message': 'Analysis deleted successfully',
+            'metadata': {
+                'generated': int(time.time() * 1000),
+                'server_time_utc': datetime.utcnow().isoformat() + 'Z'
+            }
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Failed to delete analysis: {str(e)}'
         }), 500
 
 # Serve static files (production)

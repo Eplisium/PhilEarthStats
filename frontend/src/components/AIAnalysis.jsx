@@ -14,6 +14,7 @@ const AIAnalysis = () => {
     availableModels, 
     selectedModel, 
     loadingModels,
+    progress,
     generateAnalysis, 
     clearAnalysis,
     fetchAvailableModels,
@@ -38,7 +39,7 @@ const AIAnalysis = () => {
               <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900">AI-Powered Seismic Analysis</h2>
             </div>
             <p className="text-sm sm:text-base text-gray-700 mb-3 sm:mb-4">
-              Get comprehensive insights from an AI seismologist analyzing the last 30 days of earthquake data 
+              Get comprehensive insights from an AI seismologist analyzing the last 90 days of earthquake data 
               for the Philippines region. The AI will assess patterns, risks, and provide actionable recommendations.
             </p>
             
@@ -71,7 +72,7 @@ const AIAnalysis = () => {
             <div className="flex flex-wrap gap-2 text-xs sm:text-sm text-gray-600">
               <span className="flex items-center gap-1 bg-white px-2 sm:px-3 py-1 rounded-full border border-gray-200">
                 <Activity className="h-3 w-3 sm:h-4 sm:w-4" />
-                30-day comprehensive analysis
+                90-day comprehensive analysis
               </span>
               <span className="flex items-center gap-1 bg-white px-2 sm:px-3 py-1 rounded-full border border-gray-200">
                 <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4" />
@@ -138,15 +139,54 @@ const AIAnalysis = () => {
         </div>
       )}
 
-      {/* Loading State */}
+      {/* Loading State with Progress */}
       {loading && (
-        <div className="bg-white rounded-lg border border-gray-200 p-12">
-          <div className="flex flex-col items-center justify-center space-y-4">
+        <div className="bg-white rounded-lg border border-gray-200 p-8 sm:p-12">
+          <div className="flex flex-col items-center justify-center space-y-6">
             <Loader className="h-12 w-12 text-purple-600 animate-spin" />
-            <div className="text-center">
+            <div className="text-center w-full max-w-md">
               <h3 className="text-lg font-semibold text-gray-900">Analyzing Earthquake Data</h3>
-              <p className="text-gray-600 mt-2">The AI is processing 30 days of seismic data...</p>
-              <p className="text-sm text-gray-500 mt-1">This may take 10-30 seconds</p>
+              <p className="text-gray-600 mt-2">Processing 90 days of seismic data from the Philippines...</p>
+              
+              {/* Progress Bar */}
+              {progress.percentage > 0 && (
+                <div className="mt-6">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-sm font-medium text-purple-700">{progress.message}</span>
+                    <span className="text-sm font-semibold text-purple-600">{progress.percentage}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                    <div 
+                      className="bg-gradient-to-r from-purple-500 to-blue-500 h-3 rounded-full transition-all duration-500 ease-out"
+                      style={{ width: `${progress.percentage}%` }}
+                    />
+                  </div>
+                  <div className="mt-3 space-y-1 text-xs text-gray-500">
+                    <div className={progress.percentage >= 10 ? 'text-purple-600 font-semibold' : ''}>
+                      ✓ Fetching earthquake data
+                    </div>
+                    <div className={progress.percentage >= 25 ? 'text-purple-600 font-semibold' : ''}>
+                      {progress.percentage >= 25 ? '✓' : '○'} Processing regional statistics
+                    </div>
+                    <div className={progress.percentage >= 40 ? 'text-purple-600 font-semibold' : ''}>
+                      {progress.percentage >= 40 ? '✓' : '○'} Detecting seismic clusters
+                    </div>
+                    <div className={progress.percentage >= 55 ? 'text-purple-600 font-semibold' : ''}>
+                      {progress.percentage >= 55 ? '✓' : '○'} Analyzing aftershock sequences
+                    </div>
+                    <div className={progress.percentage >= 70 ? 'text-purple-600 font-semibold' : ''}>
+                      {progress.percentage >= 70 ? '✓' : '○'} Calculating risk scores
+                    </div>
+                    <div className={progress.percentage >= 85 ? 'text-purple-600 font-semibold' : ''}>
+                      {progress.percentage >= 85 ? '✓' : '○'} Running AI analysis
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {progress.percentage === 0 && (
+                <p className="text-sm text-gray-500 mt-4">Initializing analysis...</p>
+              )}
             </div>
           </div>
         </div>
@@ -156,23 +196,435 @@ const AIAnalysis = () => {
       {!loading && analysis && (
         <div className="space-y-4 sm:space-y-6">
           {/* Statistics Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4">
               <h4 className="text-xs sm:text-sm font-semibold text-gray-600 mb-2">Total Earthquakes</h4>
               <p className="text-2xl sm:text-3xl font-bold text-purple-600">{analysis.statistics.total_count}</p>
-              <p className="text-xs text-gray-500 mt-1">Last 30 days</p>
+              <p className="text-xs text-gray-500 mt-1">Last {analysis.statistics.period_days || 90} days</p>
             </div>
             <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4">
               <h4 className="text-xs sm:text-sm font-semibold text-gray-600 mb-2">Max Magnitude</h4>
               <p className="text-2xl sm:text-3xl font-bold text-orange-600">M {analysis.statistics.max_magnitude.toFixed(1)}</p>
               <p className="text-xs text-gray-500 mt-1">Average: M {analysis.statistics.avg_magnitude.toFixed(1)}</p>
             </div>
-            <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4 sm:col-span-2 lg:col-span-1">
+            <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4">
               <h4 className="text-xs sm:text-sm font-semibold text-gray-600 mb-2">Significant Events</h4>
               <p className="text-2xl sm:text-3xl font-bold text-red-600">{analysis.statistics.significant_count}</p>
               <p className="text-xs text-gray-500 mt-1">Magnitude ≥ 4.5</p>
             </div>
+            <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4">
+              <h4 className="text-xs sm:text-sm font-semibold text-gray-600 mb-2">Total Energy</h4>
+              <p className="text-xl sm:text-2xl font-bold text-blue-600">
+                {analysis.statistics.total_energy_joules 
+                  ? (analysis.statistics.total_energy_joules >= 1e15 
+                    ? `${(analysis.statistics.total_energy_joules / 1e15).toFixed(1)}×10¹⁵` 
+                    : analysis.statistics.total_energy_joules >= 1e12
+                    ? `${(analysis.statistics.total_energy_joules / 1e12).toFixed(1)}×10¹²`
+                    : `${(analysis.statistics.total_energy_joules / 1e9).toFixed(1)}×10⁹`)
+                  : 'N/A'}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">joules released</p>
+            </div>
           </div>
+
+          {/* Regional Breakdown - NEW */}
+          {analysis.regional_breakdown && (
+            <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
+              <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <span className="text-xl">🗺️</span>
+                Regional Breakdown
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Luzon */}
+                <div className="border-l-4 border-blue-500 pl-4 bg-blue-50 rounded-r-lg p-4">
+                  <h4 className="font-bold text-blue-900 mb-3 text-lg">Luzon</h4>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Events:</span>
+                      <span className="font-semibold text-gray-900">
+                        {analysis.regional_breakdown.Luzon.count} ({analysis.regional_breakdown.Luzon.percentage}%)
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Avg Magnitude:</span>
+                      <span className="font-semibold text-gray-900">M {analysis.regional_breakdown.Luzon.avg_magnitude}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Max Magnitude:</span>
+                      <span className="font-semibold text-orange-600">M {analysis.regional_breakdown.Luzon.max_magnitude}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Significant:</span>
+                      <span className="font-semibold text-red-600">{analysis.regional_breakdown.Luzon.significant_count}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Avg Depth:</span>
+                      <span className="font-semibold text-gray-900">{analysis.regional_breakdown.Luzon.avg_depth} km</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Visayas */}
+                <div className="border-l-4 border-green-500 pl-4 bg-green-50 rounded-r-lg p-4">
+                  <h4 className="font-bold text-green-900 mb-3 text-lg">Visayas</h4>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Events:</span>
+                      <span className="font-semibold text-gray-900">
+                        {analysis.regional_breakdown.Visayas.count} ({analysis.regional_breakdown.Visayas.percentage}%)
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Avg Magnitude:</span>
+                      <span className="font-semibold text-gray-900">M {analysis.regional_breakdown.Visayas.avg_magnitude}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Max Magnitude:</span>
+                      <span className="font-semibold text-orange-600">M {analysis.regional_breakdown.Visayas.max_magnitude}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Significant:</span>
+                      <span className="font-semibold text-red-600">{analysis.regional_breakdown.Visayas.significant_count}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Avg Depth:</span>
+                      <span className="font-semibold text-gray-900">{analysis.regional_breakdown.Visayas.avg_depth} km</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Mindanao */}
+                <div className="border-l-4 border-purple-500 pl-4 bg-purple-50 rounded-r-lg p-4">
+                  <h4 className="font-bold text-purple-900 mb-3 text-lg">Mindanao</h4>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Events:</span>
+                      <span className="font-semibold text-gray-900">
+                        {analysis.regional_breakdown.Mindanao.count} ({analysis.regional_breakdown.Mindanao.percentage}%)
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Avg Magnitude:</span>
+                      <span className="font-semibold text-gray-900">M {analysis.regional_breakdown.Mindanao.avg_magnitude}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Max Magnitude:</span>
+                      <span className="font-semibold text-orange-600">M {analysis.regional_breakdown.Mindanao.max_magnitude}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Significant:</span>
+                      <span className="font-semibold text-red-600">{analysis.regional_breakdown.Mindanao.significant_count}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Avg Depth:</span>
+                      <span className="font-semibold text-gray-900">{analysis.regional_breakdown.Mindanao.avg_depth} km</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Historical Comparison - NEW */}
+          {analysis.historical_comparison && Object.keys(analysis.historical_comparison).length > 0 && (
+            <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-lg border border-amber-200 p-4 sm:p-6">
+              <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <span className="text-xl">📊</span>
+                Historical Comparison
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Previous Period */}
+                {analysis.historical_comparison.vs_previous_period && (
+                  <div className="bg-white rounded-lg p-4 border border-amber-200">
+                    <h4 className="font-semibold text-gray-800 mb-3">vs Previous 90-Day Period</h4>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600">Event Count Change:</span>
+                        <span className={`font-bold ${
+                          analysis.historical_comparison.vs_previous_period.count_change_percent > 0 
+                            ? 'text-red-600' 
+                            : analysis.historical_comparison.vs_previous_period.count_change_percent < 0
+                            ? 'text-green-600'
+                            : 'text-gray-600'
+                        }`}>
+                          {analysis.historical_comparison.vs_previous_period.count_change_percent > 0 ? '+' : ''}
+                          {analysis.historical_comparison.vs_previous_period.count_change_percent}%
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Previous Count:</span>
+                        <span className="font-semibold text-gray-900">
+                          {analysis.historical_comparison.vs_previous_period.previous_count}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600">Magnitude Change:</span>
+                        <span className={`font-bold ${
+                          analysis.historical_comparison.vs_previous_period.magnitude_change > 0 
+                            ? 'text-red-600' 
+                            : analysis.historical_comparison.vs_previous_period.magnitude_change < 0
+                            ? 'text-green-600'
+                            : 'text-gray-600'
+                        }`}>
+                          {analysis.historical_comparison.vs_previous_period.magnitude_change > 0 ? '+' : ''}
+                          {analysis.historical_comparison.vs_previous_period.magnitude_change}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Last Year */}
+                {analysis.historical_comparison.vs_last_year && (
+                  <div className="bg-white rounded-lg p-4 border border-amber-200">
+                    <h4 className="font-semibold text-gray-800 mb-3">vs Same Period Last Year</h4>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600">Event Count Change:</span>
+                        <span className={`font-bold ${
+                          analysis.historical_comparison.vs_last_year.count_change_percent > 0 
+                            ? 'text-red-600' 
+                            : analysis.historical_comparison.vs_last_year.count_change_percent < 0
+                            ? 'text-green-600'
+                            : 'text-gray-600'
+                        }`}>
+                          {analysis.historical_comparison.vs_last_year.count_change_percent > 0 ? '+' : ''}
+                          {analysis.historical_comparison.vs_last_year.count_change_percent}%
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Last Year Count:</span>
+                        <span className="font-semibold text-gray-900">
+                          {analysis.historical_comparison.vs_last_year.last_year_count}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600">Magnitude Change:</span>
+                        <span className={`font-bold ${
+                          analysis.historical_comparison.vs_last_year.magnitude_change > 0 
+                            ? 'text-red-600' 
+                            : analysis.historical_comparison.vs_last_year.magnitude_change < 0
+                            ? 'text-green-600'
+                            : 'text-gray-600'
+                        }`}>
+                          {analysis.historical_comparison.vs_last_year.magnitude_change > 0 ? '+' : ''}
+                          {analysis.historical_comparison.vs_last_year.magnitude_change}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Enhanced Depth Analysis - NEW */}
+          {analysis.statistics.very_shallow_count !== undefined && (
+            <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
+              <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <span className="text-xl">⬇️</span>
+                Enhanced Depth Distribution
+              </h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="text-center p-4 bg-red-50 rounded-lg border border-red-200">
+                  <div className="text-3xl font-bold text-red-600">{analysis.statistics.very_shallow_count}</div>
+                  <div className="text-xs text-gray-600 mt-1">Very Shallow</div>
+                  <div className="text-xs text-gray-500">{'< 10 km'}</div>
+                  <div className="text-xs text-red-600 mt-1 font-semibold">High damage risk</div>
+                </div>
+                <div className="text-center p-4 bg-orange-50 rounded-lg border border-orange-200">
+                  <div className="text-3xl font-bold text-orange-600">{analysis.statistics.shallow_count}</div>
+                  <div className="text-xs text-gray-600 mt-1">Shallow</div>
+                  <div className="text-xs text-gray-500">10-70 km</div>
+                  <div className="text-xs text-orange-600 mt-1 font-semibold">Moderate risk</div>
+                </div>
+                <div className="text-center p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                  <div className="text-3xl font-bold text-yellow-600">{analysis.statistics.intermediate_count}</div>
+                  <div className="text-xs text-gray-600 mt-1">Intermediate</div>
+                  <div className="text-xs text-gray-500">70-300 km</div>
+                  <div className="text-xs text-yellow-600 mt-1 font-semibold">Lower impact</div>
+                </div>
+                <div className="text-center p-4 bg-green-50 rounded-lg border border-green-200">
+                  <div className="text-3xl font-bold text-green-600">{analysis.statistics.deep_count}</div>
+                  <div className="text-xs text-gray-600 mt-1">Deep</div>
+                  <div className="text-xs text-gray-500">≥ 300 km</div>
+                  <div className="text-xs text-green-600 mt-1 font-semibold">Minimal impact</div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* PHASE 2: Risk Scores */}
+          {analysis.risk_scores && (
+            <div className="bg-gradient-to-r from-yellow-50 to-red-50 rounded-lg border border-yellow-200 p-4 sm:p-6">
+              <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <span className="text-xl">⚠️</span>
+                Regional Risk Assessment
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {Object.entries(analysis.risk_scores).map(([region, risk]) => (
+                  <div key={region} className={`p-4 rounded-lg border-2 ${
+                    risk.color === 'red' ? 'bg-red-50 border-red-400' :
+                    risk.color === 'orange' ? 'bg-orange-50 border-orange-400' :
+                    risk.color === 'yellow' ? 'bg-yellow-50 border-yellow-400' :
+                    'bg-green-50 border-green-400'
+                  }`}>
+                    <h4 className="font-bold text-gray-900 mb-2">{region}</h4>
+                    <div className="flex items-baseline gap-2 mb-3">
+                      <span className={`text-4xl font-bold ${
+                        risk.color === 'red' ? 'text-red-600' :
+                        risk.color === 'orange' ? 'text-orange-600' :
+                        risk.color === 'yellow' ? 'text-yellow-600' :
+                        'text-green-600'
+                      }`}>{risk.score}</span>
+                      <span className="text-sm text-gray-600">/100</span>
+                    </div>
+                    <div className={`inline-block px-3 py-1 rounded-full text-sm font-semibold mb-3 ${
+                      risk.color === 'red' ? 'bg-red-200 text-red-900' :
+                      risk.color === 'orange' ? 'bg-orange-200 text-orange-900' :
+                      risk.color === 'yellow' ? 'bg-yellow-200 text-yellow-900' :
+                      'bg-green-200 text-green-900'
+                    }`}>
+                      {risk.level} Risk
+                    </div>
+                    <div className="text-xs space-y-1 text-gray-700">
+                      <div>Activity: {risk.factors.activity}</div>
+                      <div>Magnitude: {risk.factors.magnitude}</div>
+                      <div>Significant: {risk.factors.significant_events}</div>
+                      <div>Shallow: {risk.factors.shallow_depth}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* PHASE 2: Clusters & Sequences */}
+          {(analysis.clusters || analysis.sequences) && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {/* Clusters */}
+              {analysis.clusters && analysis.clusters.length > 0 && (
+                <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
+                  <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <span className="text-xl">🎯</span>
+                    Seismic Clusters Detected
+                  </h3>
+                  <div className="text-2xl font-bold text-purple-600 mb-3">{analysis.clusters.length} clusters</div>
+                  <div className="space-y-3 max-h-64 overflow-y-auto">
+                    {analysis.clusters.slice(0, 5).map((cluster, i) => (
+                      <div key={i} className="p-3 bg-purple-50 rounded-lg border border-purple-200">
+                        <div className="font-semibold text-gray-900">Cluster {i + 1} - {cluster.region}</div>
+                        <div className="text-sm text-gray-600 mt-1">
+                          <div>{cluster.count} events</div>
+                          <div>Max: M{cluster.max_magnitude.toFixed(1)}, Avg: M{cluster.avg_magnitude.toFixed(1)}</div>
+                          <div className="text-xs text-gray-500">Center: {cluster.center_lat.toFixed(2)}°N, {cluster.center_lon.toFixed(2)}°E</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Sequences */}
+              {analysis.sequences && analysis.sequences.length > 0 && (
+                <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
+                  <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <span className="text-xl">🔗</span>
+                    Aftershock Sequences
+                  </h3>
+                  <div className="text-2xl font-bold text-indigo-600 mb-3">{analysis.sequences.length} sequences</div>
+                  <div className="space-y-3 max-h-64 overflow-y-auto">
+                    {analysis.sequences.map((seq, i) => (
+                      <div key={i} className="p-3 bg-indigo-50 rounded-lg border border-indigo-200">
+                        <div className="font-semibold text-gray-900">
+                          M{seq.mainshock_magnitude.toFixed(1)} Mainshock
+                        </div>
+                        <div className="text-sm text-gray-600 mt-1">
+                          <div>{seq.aftershock_count} aftershocks detected</div>
+                          <div>Largest: M{seq.largest_aftershock_magnitude.toFixed(1)}</div>
+                          <div className="text-xs text-gray-500">{seq.mainshock_location}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* PHASE 2: Trends & B-value */}
+          {(analysis.trends || analysis.b_value !== undefined) && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {/* Trends */}
+              {analysis.trends && (
+                <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
+                  <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <span className="text-xl">📈</span>
+                    Temporal Trends
+                  </h3>
+                  <div className={`inline-block px-4 py-2 rounded-full text-lg font-bold mb-4 ${
+                    analysis.trends.overall_trend === 'Increasing' ? 'bg-red-100 text-red-700' :
+                    analysis.trends.overall_trend === 'Decreasing' ? 'bg-green-100 text-green-700' :
+                    'bg-blue-100 text-blue-700'
+                  }`}>
+                    {analysis.trends.overall_trend}
+                  </div>
+                  <div className="space-y-2">
+                    {analysis.trends.segments.map((seg, i) => (
+                      <div key={i} className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                        <span className="text-sm font-medium text-gray-700">{seg.period}</span>
+                        <div className="text-right">
+                          <div className="text-sm font-semibold text-gray-900">{seg.count} events</div>
+                          <div className="text-xs text-gray-500">M{seg.avg_magnitude.toFixed(1)} avg</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* B-value & Volcano Correlation */}
+              <div className="space-y-4">
+                {/* B-value */}
+                {analysis.b_value !== undefined && analysis.b_value !== null && (
+                  <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
+                    <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                      <span className="text-xl">📊</span>
+                      Gutenberg-Richter b-value
+                    </h3>
+                    <div className="text-center">
+                      <div className="text-5xl font-bold text-indigo-600 mb-2">{analysis.b_value}</div>
+                      <div className="text-sm text-gray-600">
+                        {analysis.b_value > 1.0 ? 'Higher than normal - more small quakes' :
+                         analysis.b_value < 0.8 ? 'Lower than normal - potential stress buildup' :
+                         'Normal distribution (~1.0)'}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Volcano Correlation Summary */}
+                {analysis.volcano_correlation && Object.keys(analysis.volcano_correlation).length > 0 && (
+                  <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
+                    <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                      <span className="text-xl">🌋</span>
+                      Volcano Activity
+                    </h3>
+                    <div className="text-sm space-y-2">
+                      {Object.entries(analysis.volcano_correlation).slice(0, 3).map(([volcano, data]) => (
+                        <div key={volcano} className="p-2 bg-orange-50 rounded border border-orange-200">
+                          <div className="font-semibold text-gray-900">{volcano}</div>
+                          <div className="text-xs text-gray-600">
+                            {data.earthquake_count} events nearby (Max: M{data.max_magnitude.toFixed(1)})
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* AI Analysis */}
           <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
