@@ -59,3 +59,7 @@ logs/
 
 # OS
 Thumbs.db
+
+# Plans & Documentation
+plans/
+REFACTORING_PLAN.md
