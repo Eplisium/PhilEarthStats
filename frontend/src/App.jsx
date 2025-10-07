@@ -12,12 +12,14 @@ import useTabStore from './store/tabStore';
 import useDataStore from './store/useDataStore';
 import useMapStore from './store/useMapStore';
 import useAIAnalysisStore from './store/aiAnalysisStore';
+import useHeaderStore from './store/useHeaderStore';
 // Import your custom logo - place your logo.jpg in the src/assets folder
 import logoImage from './assets/logo.jpg';
 
 function App() {
-  // Local state for compact header mode
-  const [compactHeader, setCompactHeader] = useState(false);
+  // Use Zustand store for header state (with persistence)
+  const compactHeader = useHeaderStore(state => state.compactHeader);
+  const toggleCompactHeader = useHeaderStore(state => state.toggleCompactHeader);
   
   // Use Zustand stores with optimized selectors
   const { activeTab, setActiveTab } = useTabStore();
@@ -151,7 +153,7 @@ function App() {
             <div className="flex items-center gap-2">
               <CustomTooltip text={compactHeader ? "Expand header" : "Compact header"} position="bottom">
                 <button
-                  onClick={() => setCompactHeader(!compactHeader)}
+                  onClick={toggleCompactHeader}
                   className="flex items-center justify-center p-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
                   aria-label="Toggle compact mode"
                 >
@@ -230,33 +232,34 @@ function App() {
                 </div>
               )}
               
-              {/* Time and Update Info */}
-              <div className="mt-2 flex flex-col sm:flex-row items-start sm:items-center justify-between text-xs text-gray-500 gap-2 sm:gap-4 transition-opacity duration-300">
-                <div>
-                  {lastUpdate && (
-                    <span>Last updated: {lastUpdate.toLocaleString()}</span>
-                  )}
-                </div>
-                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
-                  {/* Time Zones Display */}
-                  <Clock />
-                  
-                  {/* Date Display */}
-                  <div className="hidden sm:flex items-center gap-2">
-                    <span className="text-gray-400">|</span>
-                    <span className="text-xs">
-                      {new Date().toLocaleDateString(undefined, { 
-                        weekday: 'short', 
-                        year: 'numeric', 
-                        month: 'short', 
-                        day: 'numeric' 
-                      })}
-                    </span>
-                  </div>
-                </div>
-              </div>
             </>
           )}
+          
+          {/* Time and Update Info - Always visible */}
+          <div className={`flex flex-col sm:flex-row items-start sm:items-center justify-between text-xs text-gray-500 gap-2 sm:gap-4 transition-all duration-300 ${compactHeader ? 'mt-2 pt-2 border-t border-gray-200' : 'mt-2'}`}>
+            <div>
+              {lastUpdate && (
+                <span>Last updated: {lastUpdate.toLocaleString()}</span>
+              )}
+            </div>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
+              {/* Time Zones Display */}
+              <Clock />
+              
+              {/* Date Display */}
+              <div className="hidden sm:flex items-center gap-2">
+                <span className="text-gray-400">|</span>
+                <span className="text-xs">
+                  {new Date().toLocaleDateString(undefined, { 
+                    weekday: 'short', 
+                    year: 'numeric', 
+                    month: 'short', 
+                    day: 'numeric' 
+                  })}
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
       </header>
 

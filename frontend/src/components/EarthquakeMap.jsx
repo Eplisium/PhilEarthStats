@@ -12,9 +12,14 @@ import {
   Eye,
   EyeOff,
   Mountain,
-  Activity
+  Activity,
+  Navigation,
+  Plane,
+  Clock,
+  MapPin as MapPinIcon
 } from 'lucide-react';
 import useDataStore from '../store/useDataStore';
+import useMapControlsStore from '../store/useMapControlsStore';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
@@ -93,16 +98,41 @@ const EarthquakeMap = ({ selectedEarthquake = null }) => {
   const volcanoes = useDataStore(state => state.volcanoes);
   const philippinesCenter = [12.8797, 121.7740];
   
-  // Local state for map controls
-  const [showEarthquakes, setShowEarthquakes] = useState(true);
-  const [showVolcanoes, setShowVolcanoes] = useState(true);
-  const [magnitudeFilter, setMagnitudeFilter] = useState(0);
-  const [basemap, setBasemap] = useState('street');
-  const [isLocating, setIsLocating] = useState(false);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const [mapCenter, setMapCenter] = useState(philippinesCenter);
-  const [mapZoom, setMapZoom] = useState(6);
-  const [shouldFlyTo, setShouldFlyTo] = useState(false);
+  // Map controls from Zustand store (persisted)
+  const showEarthquakes = useMapControlsStore(state => state.showEarthquakes);
+  const showVolcanoes = useMapControlsStore(state => state.showVolcanoes);
+  const magnitudeFilter = useMapControlsStore(state => state.magnitudeFilter);
+  const basemap = useMapControlsStore(state => state.basemap);
+  const toggleShowEarthquakes = useMapControlsStore(state => state.toggleShowEarthquakes);
+  const toggleShowVolcanoes = useMapControlsStore(state => state.toggleShowVolcanoes);
+  const setMagnitudeFilter = useMapControlsStore(state => state.setMagnitudeFilter);
+  const setBasemap = useMapControlsStore(state => state.setBasemap);
+  
+  // View state from Zustand store (not persisted)
+  const isLocating = useMapControlsStore(state => state.isLocating);
+  const isFullscreen = useMapControlsStore(state => state.isFullscreen);
+  const setIsLocating = useMapControlsStore(state => state.setIsLocating);
+  const setIsFullscreen = useMapControlsStore(state => state.setIsFullscreen);
+  
+  // User location from Zustand store (not persisted)
+  const userLocation = useMapControlsStore(state => state.userLocation);
+  const locationStats = useMapControlsStore(state => state.locationStats);
+  const setUserLocation = useMapControlsStore(state => state.setUserLocation);
+  const setLocationStats = useMapControlsStore(state => state.setLocationStats);
+  
+  // Map position from Zustand store (not persisted)
+  const mapCenter = useMapControlsStore(state => state.mapCenter);
+  const mapZoom = useMapControlsStore(state => state.mapZoom);
+  const shouldFlyTo = useMapControlsStore(state => state.shouldFlyTo);
+  const setMapView = useMapControlsStore(state => state.setMapView);
+  const setShouldFlyTo = useMapControlsStore(state => state.setShouldFlyTo);
+  
+  // Initialize map position on first mount
+  useEffect(() => {
+    if (mapCenter === null) {
+      setMapView(philippinesCenter, 6, false);
+    }
+  }, []);
   
   const mapRef = useRef(null);
   const containerRef = useRef(null);
@@ -110,12 +140,10 @@ const EarthquakeMap = ({ selectedEarthquake = null }) => {
   // Handle selected earthquake from list
   useEffect(() => {
     if (selectedEarthquake) {
-      setMapCenter([selectedEarthquake.latitude, selectedEarthquake.longitude]);
-      setMapZoom(10);
-      setShouldFlyTo(true);
+      setMapView([selectedEarthquake.latitude, selectedEarthquake.longitude], 10, true);
       setTimeout(() => setShouldFlyTo(false), 100);
     }
-  }, [selectedEarthquake]);
+  }, [selectedEarthquake, setMapView, setShouldFlyTo]);
 
   const getMagnitudeColor = (magnitude) => {
     if (magnitude >= 7) return '#dc2626'; // Red for major
@@ -167,10 +195,95 @@ const EarthquakeMap = ({ selectedEarthquake = null }) => {
     });
   }, []);
 
+  const userLocationIcon = useMemo(() => {
+    return L.divIcon({
+      html: `<div style="
+        position: relative;
+        width: 24px;
+        height: 24px;
+      ">
+        <div style="
+          width: 24px;
+          height: 24px;
+          background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+          border: 3px solid white;
+          border-radius: 50%;
+          box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4), 0 0 0 0 rgba(59, 130, 246, 0.4);
+          animation: locationPulse 2s infinite;
+        "></div>
+        <div style="
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          width: 8px;
+          height: 8px;
+          background: white;
+          border-radius: 50%;
+        "></div>
+      </div>
+      <style>
+        @keyframes locationPulse {
+          0% { box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4), 0 0 0 0 rgba(59, 130, 246, 0.4); }
+          50% { box-shadow: 0 2px 12px rgba(59, 130, 246, 0.6), 0 0 0 10px rgba(59, 130, 246, 0); }
+          100% { box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4), 0 0 0 0 rgba(59, 130, 246, 0); }
+        }
+      </style>`,
+      className: 'user-location-marker',
+      iconSize: [24, 24],
+      iconAnchor: [12, 12],
+      popupAnchor: [0, -12]
+    });
+  }, []);
+
   // Filter earthquakes by magnitude
   const filteredEarthquakes = useMemo(() => {
     return earthquakes.filter(eq => eq.magnitude >= magnitudeFilter);
   }, [earthquakes, magnitudeFilter]);
+
+  // Calculate distance between two coordinates using Haversine formula (in km)
+  const calculateDistance = (lat1, lon1, lat2, lon2) => {
+    const R = 6371; // Earth's radius in kilometers
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = 
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  };
+
+  // Calculate travel time estimates
+  const calculateTravelStats = (distanceKm) => {
+    // Average speeds
+    const planeSpeed = 800; // km/h (commercial jet)
+    const carSpeed = 80; // km/h (average with traffic/roads)
+    
+    const planeHours = distanceKm / planeSpeed;
+    const carHours = distanceKm / carSpeed;
+    
+    const formatTime = (hours) => {
+      if (hours < 1) {
+        return `${Math.round(hours * 60)} minutes`;
+      } else if (hours < 24) {
+        const h = Math.floor(hours);
+        const m = Math.round((hours - h) * 60);
+        return m > 0 ? `${h}h ${m}m` : `${h} hours`;
+      } else {
+        const days = Math.floor(hours / 24);
+        const h = Math.floor(hours % 24);
+        return h > 0 ? `${days}d ${h}h` : `${days} days`;
+      }
+    };
+    
+    return {
+      byPlane: formatTime(planeHours),
+      byCar: formatTime(carHours),
+      planeHours: planeHours.toFixed(1),
+      carHours: carHours.toFixed(1)
+    };
+  };
 
   // Basemap tiles
   const basemapTiles = {
@@ -220,9 +333,7 @@ const EarthquakeMap = ({ selectedEarthquake = null }) => {
 
   // Reset to default view
   const handleResetView = () => {
-    setMapCenter(philippinesCenter);
-    setMapZoom(6);
-    setShouldFlyTo(true);
+    setMapView(philippinesCenter, 6, true);
     setTimeout(() => setShouldFlyTo(false), 100);
   };
 
@@ -232,10 +343,38 @@ const EarthquakeMap = ({ selectedEarthquake = null }) => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          const { latitude, longitude } = position.coords;
-          setMapCenter([latitude, longitude]);
-          setMapZoom(12);
-          setShouldFlyTo(true);
+          const { latitude, longitude, accuracy } = position.coords;
+          
+          // Calculate distance to Philippines center
+          const distance = calculateDistance(
+            latitude, 
+            longitude, 
+            philippinesCenter[0], 
+            philippinesCenter[1]
+          );
+          
+          // Calculate travel statistics
+          const travelStats = calculateTravelStats(distance);
+          
+          // Determine if user is in Philippines (within ~500km)
+          const isInPhilippines = distance < 500;
+          
+          // Set user location
+          setUserLocation({ latitude, longitude, accuracy });
+          
+          // Set location statistics
+          setLocationStats({
+            distance: distance.toFixed(2),
+            distanceMiles: (distance * 0.621371).toFixed(2),
+            travelByPlane: travelStats.byPlane,
+            travelByCar: travelStats.byCar,
+            isInPhilippines,
+            coordinates: `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`,
+            accuracy: Math.round(accuracy)
+          });
+          
+          // Fly to user location
+          setMapView([latitude, longitude], 12, true);
           setTimeout(() => setShouldFlyTo(false), 100);
           setIsLocating(false);
         },
@@ -243,6 +382,11 @@ const EarthquakeMap = ({ selectedEarthquake = null }) => {
           console.error('Error getting location:', error);
           alert('Unable to get your location. Please enable location services.');
           setIsLocating(false);
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0
         }
       );
     } else {
@@ -273,7 +417,7 @@ const EarthquakeMap = ({ selectedEarthquake = null }) => {
             <span className="text-sm font-semibold text-gray-700">Layers:</span>
           </div>
           <button
-            onClick={() => setShowEarthquakes(!showEarthquakes)}
+            onClick={toggleShowEarthquakes}
             className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
               showEarthquakes
                 ? 'bg-purple-600 text-white'
@@ -285,7 +429,7 @@ const EarthquakeMap = ({ selectedEarthquake = null }) => {
             Earthquakes
           </button>
           <button
-            onClick={() => setShowVolcanoes(!showVolcanoes)}
+            onClick={toggleShowVolcanoes}
             className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
               showVolcanoes
                 ? 'bg-red-600 text-white'
@@ -361,7 +505,7 @@ const EarthquakeMap = ({ selectedEarthquake = null }) => {
           style={{ height: '100%', width: '100%' }}
           ref={mapRef}
         >
-          <MapViewController center={mapCenter} zoom={mapZoom} flyTo={shouldFlyTo} />
+          <MapViewController center={mapCenter || philippinesCenter} zoom={mapZoom || 6} flyTo={shouldFlyTo} />
           
           <TileLayer
             attribution={basemapTiles[basemap].attribution}
@@ -516,6 +660,77 @@ const EarthquakeMap = ({ selectedEarthquake = null }) => {
               </Popup>
             </Marker>
           ))}
+
+          {/* User Location Marker */}
+          {userLocation && (
+            <Marker
+              position={[userLocation.latitude, userLocation.longitude]}
+              icon={userLocationIcon}
+              zIndexOffset={2000}
+            >
+              <Popup maxWidth={320} closeButton={true} className="user-location-popup">
+                <div className="p-2">
+                  <div className="flex items-center gap-2 mb-3 pb-2 border-b border-gray-200">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
+                      <MapPinIcon className="h-4 w-4 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-base text-gray-900">Your Location</h3>
+                      <p className="text-xs text-gray-500">{locationStats?.coordinates}</p>
+                    </div>
+                  </div>
+                  
+                  {locationStats && (
+                    <div className="space-y-2">
+                      {/* Distance to Philippines - Compact */}
+                      <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-2.5 border border-purple-200">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Navigation className="h-4 w-4 text-purple-600" />
+                            <span className="text-xs font-medium text-purple-700">Distance to PH</span>
+                          </div>
+                          {locationStats.isInPhilippines ? (
+                            <span className="text-sm font-bold text-green-600">🇵🇭 You're here!</span>
+                          ) : (
+                            <div className="text-right">
+                              <p className="text-sm font-bold text-purple-900">{locationStats.distance} km</p>
+                              <p className="text-xs text-purple-600">{locationStats.distanceMiles} mi</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Travel Time Estimates - Compact Grid */}
+                      {!locationStats.isInPhilippines && (
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg p-2 border border-orange-200">
+                            <div className="flex items-center gap-1.5 mb-1">
+                              <Plane className="h-3.5 w-3.5 text-orange-600" />
+                              <span className="text-xs font-medium text-orange-700">By Plane</span>
+                            </div>
+                            <p className="text-sm font-bold text-orange-900">{locationStats.travelByPlane}</p>
+                          </div>
+                          <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-2 border border-blue-200">
+                            <div className="flex items-center gap-1.5 mb-1">
+                              <Activity className="h-3.5 w-3.5 text-blue-600" />
+                              <span className="text-xs font-medium text-blue-700">By Car</span>
+                            </div>
+                            <p className="text-sm font-bold text-blue-900">{locationStats.travelByCar}</p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Accuracy Info - Compact */}
+                      <div className="flex items-center justify-between pt-2 border-t border-gray-200">
+                        <span className="text-xs text-gray-500">GPS Accuracy</span>
+                        <span className="text-xs font-medium text-gray-700">±{locationStats.accuracy}m</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </Popup>
+            </Marker>
+          )}
         </MapContainer>
       </div>
 
