@@ -636,7 +636,7 @@ In case of emergency, follow official government advisories and evacuation order
 
 **AI Models:**
 - **xAI Grok** - Advanced reasoning
-- **OpenAI GPT-4o** - Natural language processing
+- **OpenAI GPT Models** - Natural language processing
 - **Anthropic Claude** - Analytical AI
 - **Google Gemini** - Multi-modal AI
 
