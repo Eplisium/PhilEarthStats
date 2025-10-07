@@ -12,6 +12,7 @@ from dotenv import load_dotenv
 from database import db, DatabaseService, EarthquakeEvent, YearStatistics
 from ai_config import get_available_models, get_model_config, validate_model, DEFAULT_MODEL, FALLBACK_MODELS
 from ai_prompts import build_analysis_prompt, get_system_prompt, get_prompt_config, PROMPT_VERSION
+from insights_engine import InsightsEngine
 
 # Load environment variables
 load_dotenv()
@@ -1913,6 +1914,313 @@ def delete_ai_history(analysis_id):
         return jsonify({
             'success': False,
             'error': f'Failed to delete analysis: {str(e)}'
+        }), 500
+
+# ========== AI SEISMIC INSIGHTS ENGINE ENDPOINTS ==========
+
+@app.route('/api/insights/config', methods=['GET'])
+def get_insights_config():
+    """Get AI Insights Engine configuration"""
+    try:
+        engine = InsightsEngine()
+        status = engine.get_status()
+        
+        return jsonify({
+            'success': True,
+            'config': status,
+            'metadata': {
+                'generated': int(time.time() * 1000),
+                'server_time_utc': datetime.utcnow().isoformat() + 'Z'
+            }
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Failed to get config: {str(e)}'
+        }), 500
+
+@app.route('/api/insights/config', methods=['POST'])
+def update_insights_config():
+    """Update AI Insights Engine configuration"""
+    try:
+        data = request.json
+        
+        enabled = data.get('enabled')
+        frequency_hours = data.get('frequency_hours')
+        ai_model = data.get('ai_model')
+        min_confidence = data.get('min_confidence')
+        
+        success = DatabaseService.update_engine_config(
+            enabled=enabled,
+            frequency_hours=frequency_hours,
+            ai_model=ai_model,
+            min_confidence=min_confidence
+        )
+        
+        if success:
+            engine = InsightsEngine()
+            status = engine.get_status()
+            
+            return jsonify({
+                'success': True,
+                'config': status,
+                'message': 'Configuration updated successfully',
+                'metadata': {
+                    'generated': int(time.time() * 1000),
+                    'server_time_utc': datetime.utcnow().isoformat() + 'Z'
+                }
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to update configuration'
+            }), 500
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Failed to update config: {str(e)}'
+        }), 500
+
+@app.route('/api/insights', methods=['GET'])
+def get_insights():
+    """Get active seismic insights with optional filtering"""
+    try:
+        insight_type = request.args.get('type')
+        region = request.args.get('region')
+        limit = int(request.args.get('limit', 50))
+        
+        insights = DatabaseService.get_active_insights(
+            insight_type=insight_type,
+            region=region,
+            limit=limit
+        )
+        
+        return jsonify({
+            'success': True,
+            'count': len(insights),
+            'insights': insights,
+            'metadata': {
+                'generated': int(time.time() * 1000),
+                'server_time_utc': datetime.utcnow().isoformat() + 'Z',
+                'filters': {
+                    'type': insight_type,
+                    'region': region,
+                    'limit': limit
+                }
+            }
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Failed to get insights: {str(e)}'
+        }), 500
+
+@app.route('/api/insights/recent', methods=['GET'])
+def get_recent_insights():
+    """Get recently created or updated insights"""
+    try:
+        hours = int(request.args.get('hours', 24))
+        limit = int(request.args.get('limit', 20))
+        
+        insights = DatabaseService.get_recent_insights(hours=hours, limit=limit)
+        
+        return jsonify({
+            'success': True,
+            'count': len(insights),
+            'insights': insights,
+            'time_window_hours': hours,
+            'metadata': {
+                'generated': int(time.time() * 1000),
+                'server_time_utc': datetime.utcnow().isoformat() + 'Z'
+            }
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Failed to get recent insights: {str(e)}'
+        }), 500
+
+@app.route('/api/insights/<int:insight_id>', methods=['GET'])
+def get_insight_details(insight_id):
+    """Get detailed information about a specific insight"""
+    try:
+        insight = DatabaseService.get_insight_by_id(insight_id)
+        
+        if not insight:
+            return jsonify({
+                'success': False,
+                'error': 'Insight not found'
+            }), 404
+        
+        # Get history for this insight
+        history = DatabaseService.get_insight_history(insight_id, limit=10)
+        
+        return jsonify({
+            'success': True,
+            'insight': insight,
+            'history': history,
+            'metadata': {
+                'generated': int(time.time() * 1000),
+                'server_time_utc': datetime.utcnow().isoformat() + 'Z'
+            }
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Failed to get insight details: {str(e)}'
+        }), 500
+
+@app.route('/api/insights/statistics', methods=['GET'])
+def get_insights_statistics():
+    """Get overall statistics about generated insights"""
+    try:
+        stats = DatabaseService.get_insights_statistics()
+        
+        if not stats:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to get statistics'
+            }), 500
+        
+        return jsonify({
+            'success': True,
+            'statistics': stats,
+            'metadata': {
+                'generated': int(time.time() * 1000),
+                'server_time_utc': datetime.utcnow().isoformat() + 'Z'
+            }
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Failed to get statistics: {str(e)}'
+        }), 500
+
+@app.route('/api/insights/run', methods=['POST'])
+def trigger_insights_run():
+    """Manually trigger an insights generation run"""
+    try:
+        engine = InsightsEngine()
+        
+        # Check if engine can run
+        can_run, message = engine.should_run()
+        
+        # Allow manual override
+        force = request.json.get('force', False) if request.json else False
+        
+        if not can_run and not force:
+            return jsonify({
+                'success': False,
+                'error': message,
+                'can_override': True
+            }), 400
+        
+        # Fetch recent earthquakes to analyze
+        # Use the cached earthquake data
+        def fetch_earthquakes():
+            params = {
+                'format': 'geojson',
+                'starttime': (datetime.utcnow() - timedelta(days=14)).strftime('%Y-%m-%d'),
+                'endtime': datetime.utcnow().strftime('%Y-%m-%d'),
+                **PHILIPPINES_BOUNDS,
+                'orderby': 'time',
+                'minmagnitude': 2.5
+            }
+            
+            response = requests.get(USGS_API, params=params, timeout=15)
+            response.raise_for_status()
+            data = response.json()
+            
+            earthquakes = []
+            for feature in data['features']:
+                props = feature['properties']
+                coords = feature['geometry']['coordinates']
+                
+                earthquakes.append({
+                    'id': feature['id'],
+                    'magnitude': props.get('mag'),
+                    'place': props.get('place'),
+                    'time': props.get('time'),
+                    'longitude': coords[0],
+                    'latitude': coords[1],
+                    'depth': coords[2]
+                })
+            
+            return earthquakes
+        
+        earthquakes = fetch_earthquakes()
+        
+        # Run the analysis
+        result = engine.run_analysis(earthquakes)
+        
+        return jsonify({
+            'success': result.get('success', False),
+            'insights_generated': result.get('insights_generated', 0),
+            'duration_seconds': result.get('duration_seconds', 0),
+            'earthquakes_analyzed': result.get('earthquakes_analyzed', 0),
+            'error': result.get('error'),
+            'metadata': {
+                'generated': int(time.time() * 1000),
+                'server_time_utc': datetime.utcnow().isoformat() + 'Z',
+                'manual_trigger': True
+            }
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Failed to run insights generation: {str(e)}'
+        }), 500
+
+@app.route('/api/insights/<int:insight_id>', methods=['DELETE'])
+def delete_insight(insight_id):
+    """Invalidate/delete a specific insight"""
+    try:
+        reason = request.json.get('reason', 'Manually invalidated') if request.json else 'Manually invalidated'
+        
+        success = DatabaseService.invalidate_insight(insight_id, reason=reason)
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'Insight invalidated successfully',
+                'metadata': {
+                    'generated': int(time.time() * 1000),
+                    'server_time_utc': datetime.utcnow().isoformat() + 'Z'
+                }
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Insight not found or already invalidated'
+            }), 404
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Failed to delete insight: {str(e)}'
+        }), 500
+
+@app.route('/api/insights/category/<category>', methods=['GET'])
+def get_insights_by_category(category):
+    """Get insights filtered by category"""
+    try:
+        limit = int(request.args.get('limit', 20))
+        
+        insights = DatabaseService.get_insights_by_category(category, limit=limit)
+        
+        return jsonify({
+            'success': True,
+            'count': len(insights),
+            'category': category,
+            'insights': insights,
+            'metadata': {
+                'generated': int(time.time() * 1000),
+                'server_time_utc': datetime.utcnow().isoformat() + 'Z'
+            }
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Failed to get insights by category: {str(e)}'
         }), 500
 
 # Serve static files (production)

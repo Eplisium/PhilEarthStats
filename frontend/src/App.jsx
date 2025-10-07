@@ -5,6 +5,7 @@ import EarthquakeList from './components/EarthquakeList';
 import Statistics from './components/Statistics';
 import VolcanoList from './components/VolcanoList';
 import AIAnalysis from './components/AIAnalysis';
+import AIInsights from './components/AIInsights';
 import CustomTooltip from './components/CustomTooltip';
 import Clock from './components/Clock';
 import useCountUp from './hooks/useCountUp';
@@ -411,6 +412,20 @@ function App() {
                   <span className="sm:hidden">AI</span>
                 </div>
               </button>
+              <button
+                onClick={() => setActiveTab('ai-insights')}
+                className={`px-4 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                  activeTab === 'ai-insights'
+                    ? 'border-purple-600 text-purple-600'
+                    : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-center space-x-1 sm:space-x-2">
+                  <Brain className="h-4 w-4" />
+                  <span className="hidden sm:inline">AI Insights</span>
+                  <span className="sm:hidden">Insights</span>
+                </div>
+              </button>
             </nav>
           </div>
 
@@ -440,6 +455,10 @@ function App() {
 
             {activeTab === 'ai-analysis' && (
               <AIAnalysis />
+            )}
+
+            {activeTab === 'ai-insights' && (
+              <AIInsights />
             )}
           </div>
         </div>

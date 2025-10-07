@@ -151,6 +151,154 @@ class AnalysisHistory(db.Model):
         
         return result
 
+# ========== AI SEISMIC INSIGHTS ENGINE MODELS ==========
+
+class EngineConfig(db.Model):
+    """Store AI Insights Engine configuration and state"""
+    __tablename__ = 'engine_config'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    enabled = db.Column(db.Boolean, default=False, nullable=False)
+    analysis_frequency_hours = db.Column(db.Integer, default=6)  # Run every 6 hours by default
+    last_run_at = db.Column(db.DateTime, index=True)
+    next_run_at = db.Column(db.DateTime, index=True)
+    total_runs = db.Column(db.Integer, default=0)
+    total_insights_generated = db.Column(db.Integer, default=0)
+    ai_model = db.Column(db.String(100))  # Which AI model to use
+    min_confidence_threshold = db.Column(db.Float, default=0.6)  # Minimum confidence to store insight
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'enabled': self.enabled,
+            'analysis_frequency_hours': self.analysis_frequency_hours,
+            'last_run_at': self.last_run_at.isoformat() if self.last_run_at else None,
+            'next_run_at': self.next_run_at.isoformat() if self.next_run_at else None,
+            'total_runs': self.total_runs,
+            'total_insights_generated': self.total_insights_generated,
+            'ai_model': self.ai_model,
+            'min_confidence_threshold': self.min_confidence_threshold,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
+
+class SeismicInsight(db.Model):
+    """Store AI-generated seismic insights"""
+    __tablename__ = 'seismic_insights'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    insight_type = db.Column(db.String(50), nullable=False, index=True)  # risk, pattern, anomaly, correlation, prediction
+    category = db.Column(db.String(50))  # shallow_activity, cluster_formation, regional_risk, etc.
+    title = db.Column(db.String(255), nullable=False)
+    description = db.Column(db.Text, nullable=False)
+    
+    # Geographic scope
+    region = db.Column(db.String(100))  # Luzon, Visayas, Mindanao, or specific location
+    location = db.Column(db.String(255))  # More specific location
+    latitude = db.Column(db.Float)
+    longitude = db.Column(db.Float)
+    
+    # Insight metadata
+    confidence_score = db.Column(db.Float, default=0.5)  # 0.0 to 1.0
+    severity_level = db.Column(db.String(20))  # low, moderate, high, critical
+    status = db.Column(db.String(20), default='active')  # active, updated, invalidated, evolved
+    
+    # Data supporting the insight
+    supporting_data = db.Column(db.Text)  # JSON: earthquake IDs, statistics, etc.
+    earthquake_count = db.Column(db.Integer, default=0)
+    magnitude_range = db.Column(db.String(50))  # e.g., "M3.5 - M5.2"
+    depth_range = db.Column(db.String(50))  # e.g., "5km - 15km"
+    time_window_days = db.Column(db.Integer)  # Number of days analyzed
+    
+    # Lifecycle tracking
+    version = db.Column(db.Integer, default=1)
+    parent_insight_id = db.Column(db.Integer, db.ForeignKey('seismic_insights.id'), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    valid_until = db.Column(db.DateTime)  # When this insight should be re-evaluated
+    
+    # AI metadata
+    generated_by_model = db.Column(db.String(100))
+    generation_timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'insight_type': self.insight_type,
+            'category': self.category,
+            'title': self.title,
+            'description': self.description,
+            'region': self.region,
+            'location': self.location,
+            'coordinates': {
+                'latitude': self.latitude,
+                'longitude': self.longitude
+            } if self.latitude and self.longitude else None,
+            'confidence_score': self.confidence_score,
+            'severity_level': self.severity_level,
+            'status': self.status,
+            'supporting_data': json.loads(self.supporting_data) if self.supporting_data else {},
+            'earthquake_count': self.earthquake_count,
+            'magnitude_range': self.magnitude_range,
+            'depth_range': self.depth_range,
+            'time_window_days': self.time_window_days,
+            'version': self.version,
+            'parent_insight_id': self.parent_insight_id,
+            'created_at': self.created_at.isoformat(),
+            'updated_at': self.updated_at.isoformat(),
+            'valid_until': self.valid_until.isoformat() if self.valid_until else None,
+            'generated_by_model': self.generated_by_model,
+            'age_hours': (datetime.utcnow() - self.created_at).total_seconds() / 3600
+        }
+
+class InsightHistory(db.Model):
+    """Track how insights evolve over time"""
+    __tablename__ = 'insight_history'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    insight_id = db.Column(db.Integer, db.ForeignKey('seismic_insights.id'), nullable=False, index=True)
+    action = db.Column(db.String(50), nullable=False)  # created, updated, confidence_changed, invalidated, evolved
+    previous_state = db.Column(db.Text)  # JSON snapshot of previous state
+    new_state = db.Column(db.Text)  # JSON snapshot of new state
+    reason = db.Column(db.Text)  # Why the change occurred
+    triggered_by_event_id = db.Column(db.String(100))  # Which earthquake triggered the update
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'insight_id': self.insight_id,
+            'action': self.action,
+            'previous_state': json.loads(self.previous_state) if self.previous_state else None,
+            'new_state': json.loads(self.new_state) if self.new_state else None,
+            'reason': self.reason,
+            'triggered_by_event_id': self.triggered_by_event_id,
+            'timestamp': self.timestamp.isoformat()
+        }
+
+class InsightTrigger(db.Model):
+    """Log what events/patterns triggered insight generation"""
+    __tablename__ = 'insight_triggers'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    trigger_type = db.Column(db.String(50), nullable=False)  # new_earthquake, pattern_detected, threshold_exceeded
+    trigger_description = db.Column(db.Text)
+    earthquake_ids = db.Column(db.Text)  # JSON array of related earthquake IDs
+    insights_generated = db.Column(db.Integer, default=0)
+    analysis_duration_seconds = db.Column(db.Float)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'trigger_type': self.trigger_type,
+            'trigger_description': self.trigger_description,
+            'earthquake_ids': json.loads(self.earthquake_ids) if self.earthquake_ids else [],
+            'insights_generated': self.insights_generated,
+            'analysis_duration_seconds': self.analysis_duration_seconds,
+            'timestamp': self.timestamp.isoformat()
+        }
+
 class DatabaseService:
     """Service class for database operations"""
     
@@ -699,3 +847,361 @@ class DatabaseService:
             db.session.rollback()
             print(f"Error deleting analysis: {e}")
             return False
+    
+    # ========== AI SEISMIC INSIGHTS ENGINE SERVICES ==========
+    
+    @staticmethod
+    def get_engine_config():
+        """Get or create engine configuration"""
+        try:
+            config = EngineConfig.query.first()
+            if not config:
+                # Create default configuration
+                config = EngineConfig(
+                    enabled=False,
+                    analysis_frequency_hours=6,
+                    ai_model='x-ai/grok-4-fast',
+                    min_confidence_threshold=0.6
+                )
+                db.session.add(config)
+                db.session.commit()
+            return config
+        except Exception as e:
+            print(f"Error getting engine config: {e}")
+            return None
+    
+    @staticmethod
+    def update_engine_config(enabled=None, frequency_hours=None, ai_model=None, min_confidence=None):
+        """Update engine configuration"""
+        try:
+            config = DatabaseService.get_engine_config()
+            if not config:
+                return False
+            
+            if enabled is not None:
+                config.enabled = enabled
+                # Schedule next run if enabling
+                if enabled and not config.next_run_at:
+                    config.next_run_at = datetime.utcnow() + timedelta(hours=config.analysis_frequency_hours)
+            
+            if frequency_hours is not None:
+                config.analysis_frequency_hours = frequency_hours
+                # Reschedule next run
+                if config.enabled:
+                    config.next_run_at = datetime.utcnow() + timedelta(hours=frequency_hours)
+            
+            if ai_model is not None:
+                config.ai_model = ai_model
+            
+            if min_confidence is not None:
+                config.min_confidence_threshold = min_confidence
+            
+            db.session.commit()
+            return True
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error updating engine config: {e}")
+            return False
+    
+    @staticmethod
+    def record_engine_run():
+        """Record that the engine completed a run"""
+        try:
+            config = DatabaseService.get_engine_config()
+            if config:
+                config.last_run_at = datetime.utcnow()
+                config.total_runs += 1
+                config.next_run_at = datetime.utcnow() + timedelta(hours=config.analysis_frequency_hours)
+                db.session.commit()
+                return True
+            return False
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error recording engine run: {e}")
+            return False
+    
+    @staticmethod
+    def create_insight(insight_data):
+        """Create a new seismic insight"""
+        try:
+            insight = SeismicInsight(
+                insight_type=insight_data.get('insight_type'),
+                category=insight_data.get('category'),
+                title=insight_data.get('title'),
+                description=insight_data.get('description'),
+                region=insight_data.get('region'),
+                location=insight_data.get('location'),
+                latitude=insight_data.get('latitude'),
+                longitude=insight_data.get('longitude'),
+                confidence_score=insight_data.get('confidence_score', 0.5),
+                severity_level=insight_data.get('severity_level', 'moderate'),
+                status='active',
+                supporting_data=json.dumps(insight_data.get('supporting_data', {})),
+                earthquake_count=insight_data.get('earthquake_count', 0),
+                magnitude_range=insight_data.get('magnitude_range'),
+                depth_range=insight_data.get('depth_range'),
+                time_window_days=insight_data.get('time_window_days'),
+                valid_until=insight_data.get('valid_until'),
+                generated_by_model=insight_data.get('generated_by_model'),
+                version=1
+            )
+            
+            db.session.add(insight)
+            db.session.commit()
+            
+            # Record creation in history
+            DatabaseService.record_insight_history(
+                insight.id,
+                'created',
+                None,
+                insight.to_dict(),
+                f"Insight created by {insight_data.get('generated_by_model', 'AI')}"
+            )
+            
+            # Update engine stats
+            config = DatabaseService.get_engine_config()
+            if config:
+                config.total_insights_generated += 1
+                db.session.commit()
+            
+            return insight.id
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error creating insight: {e}")
+            return None
+    
+    @staticmethod
+    def update_insight(insight_id, updates, reason=None, triggered_by_event=None):
+        """Update an existing insight"""
+        try:
+            insight = SeismicInsight.query.get(insight_id)
+            if not insight:
+                return False
+            
+            # Capture previous state
+            previous_state = insight.to_dict()
+            
+            # Apply updates
+            for key, value in updates.items():
+                if hasattr(insight, key):
+                    if key == 'supporting_data':
+                        setattr(insight, key, json.dumps(value))
+                    else:
+                        setattr(insight, key, value)
+            
+            insight.version += 1
+            insight.status = 'updated'
+            
+            db.session.commit()
+            
+            # Record in history
+            DatabaseService.record_insight_history(
+                insight_id,
+                'updated',
+                previous_state,
+                insight.to_dict(),
+                reason or "Insight updated based on new data",
+                triggered_by_event
+            )
+            
+            return True
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error updating insight: {e}")
+            return False
+    
+    @staticmethod
+    def invalidate_insight(insight_id, reason=None):
+        """Mark an insight as invalidated"""
+        try:
+            insight = SeismicInsight.query.get(insight_id)
+            if not insight:
+                return False
+            
+            previous_state = insight.to_dict()
+            insight.status = 'invalidated'
+            
+            db.session.commit()
+            
+            DatabaseService.record_insight_history(
+                insight_id,
+                'invalidated',
+                previous_state,
+                insight.to_dict(),
+                reason or "Pattern no longer detected in recent data"
+            )
+            
+            return True
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error invalidating insight: {e}")
+            return False
+    
+    @staticmethod
+    def get_active_insights(insight_type=None, region=None, limit=50):
+        """Get active insights with optional filtering"""
+        try:
+            query = SeismicInsight.query.filter_by(status='active')
+            
+            if insight_type:
+                query = query.filter_by(insight_type=insight_type)
+            
+            if region:
+                query = query.filter_by(region=region)
+            
+            insights = query.order_by(SeismicInsight.created_at.desc()).limit(limit).all()
+            return [insight.to_dict() for insight in insights]
+        except Exception as e:
+            print(f"Error getting active insights: {e}")
+            return []
+    
+    @staticmethod
+    def get_recent_insights(hours=24, limit=20):
+        """Get insights created or updated in the last N hours"""
+        try:
+            cutoff_time = datetime.utcnow() - timedelta(hours=hours)
+            insights = SeismicInsight.query.filter(
+                SeismicInsight.updated_at >= cutoff_time
+            ).order_by(SeismicInsight.updated_at.desc()).limit(limit).all()
+            
+            return [insight.to_dict() for insight in insights]
+        except Exception as e:
+            print(f"Error getting recent insights: {e}")
+            return []
+    
+    @staticmethod
+    def get_insight_by_id(insight_id):
+        """Get a specific insight by ID"""
+        try:
+            insight = SeismicInsight.query.get(insight_id)
+            return insight.to_dict() if insight else None
+        except Exception as e:
+            print(f"Error getting insight by ID: {e}")
+            return None
+    
+    @staticmethod
+    def get_insight_history(insight_id, limit=20):
+        """Get history for a specific insight"""
+        try:
+            history = InsightHistory.query.filter_by(insight_id=insight_id)\
+                .order_by(InsightHistory.timestamp.desc())\
+                .limit(limit)\
+                .all()
+            
+            return [h.to_dict() for h in history]
+        except Exception as e:
+            print(f"Error getting insight history: {e}")
+            return []
+    
+    @staticmethod
+    def record_insight_history(insight_id, action, previous_state, new_state, reason, triggered_by_event=None):
+        """Record an insight history entry"""
+        try:
+            history = InsightHistory(
+                insight_id=insight_id,
+                action=action,
+                previous_state=json.dumps(previous_state) if previous_state else None,
+                new_state=json.dumps(new_state) if new_state else None,
+                reason=reason,
+                triggered_by_event_id=triggered_by_event
+            )
+            
+            db.session.add(history)
+            db.session.commit()
+            return True
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error recording insight history: {e}")
+            return False
+    
+    @staticmethod
+    def create_insight_trigger(trigger_type, description, earthquake_ids, insights_generated, duration):
+        """Log an insight generation trigger"""
+        try:
+            trigger = InsightTrigger(
+                trigger_type=trigger_type,
+                trigger_description=description,
+                earthquake_ids=json.dumps(earthquake_ids) if earthquake_ids else None,
+                insights_generated=insights_generated,
+                analysis_duration_seconds=duration
+            )
+            
+            db.session.add(trigger)
+            db.session.commit()
+            return trigger.id
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error creating insight trigger: {e}")
+            return None
+    
+    @staticmethod
+    def get_insights_by_category(category, limit=20):
+        """Get insights by category"""
+        try:
+            insights = SeismicInsight.query.filter_by(
+                category=category,
+                status='active'
+            ).order_by(SeismicInsight.confidence_score.desc()).limit(limit).all()
+            
+            return [insight.to_dict() for insight in insights]
+        except Exception as e:
+            print(f"Error getting insights by category: {e}")
+            return []
+    
+    @staticmethod
+    def get_insights_statistics():
+        """Get overall statistics about insights"""
+        try:
+            total = SeismicInsight.query.count()
+            active = SeismicInsight.query.filter_by(status='active').count()
+            updated = SeismicInsight.query.filter_by(status='updated').count()
+            invalidated = SeismicInsight.query.filter_by(status='invalidated').count()
+            
+            # Count by type
+            by_type = {}
+            for insight_type in ['risk', 'pattern', 'anomaly', 'correlation', 'prediction']:
+                count = SeismicInsight.query.filter_by(
+                    insight_type=insight_type,
+                    status='active'
+                ).count()
+                by_type[insight_type] = count
+            
+            # Count by severity
+            by_severity = {}
+            for severity in ['low', 'moderate', 'high', 'critical']:
+                count = SeismicInsight.query.filter_by(
+                    severity_level=severity,
+                    status='active'
+                ).count()
+                by_severity[severity] = count
+            
+            return {
+                'total': total,
+                'active': active,
+                'updated': updated,
+                'invalidated': invalidated,
+                'by_type': by_type,
+                'by_severity': by_severity
+            }
+        except Exception as e:
+            print(f"Error getting insights statistics: {e}")
+            return None
+    
+    @staticmethod
+    def cleanup_old_insights(keep_days=30):
+        """Clean up old invalidated insights"""
+        try:
+            cutoff_date = datetime.utcnow() - timedelta(days=keep_days)
+            deleted = SeismicInsight.query.filter(
+                and_(
+                    SeismicInsight.status == 'invalidated',
+                    SeismicInsight.updated_at < cutoff_date
+                )
+            ).delete()
+            
+            db.session.commit()
+            return deleted
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error cleaning up old insights: {e}")
+            return 0
