@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, memo } from 'react';
 import { format } from 'date-fns';
 import { ExternalLink, AlertTriangle, MapPin, Map } from 'lucide-react';
 import useDataStore from '../store/useDataStore';
@@ -192,4 +192,4 @@ const EarthquakeList = () => {
   );
 };
 
-export default EarthquakeList;
+export default memo(EarthquakeList);

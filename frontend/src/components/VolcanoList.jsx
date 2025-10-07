@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, memo } from 'react';
 import { Mountain, MapPin, TrendingUp, AlertTriangle, Activity, Users, Building2, Radio, ChevronDown, ChevronUp, Info, Waves, Target, Phone, Eye, Flame } from 'lucide-react';
 import useCountUp from '../hooks/useCountUp';
 import useDataStore from '../store/useDataStore';
@@ -424,4 +424,4 @@ const VolcanoList = () => {
   );
 };
 
-export default VolcanoList;
+export default memo(VolcanoList);

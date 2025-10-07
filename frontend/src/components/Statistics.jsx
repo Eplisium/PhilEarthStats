@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, memo } from 'react';
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { TrendingUp, Activity, Layers } from 'lucide-react';
 import useCountUp from '../hooks/useCountUp';
@@ -397,4 +397,4 @@ const Statistics = () => {
   );
 };
 
-export default Statistics;
+export default memo(Statistics);

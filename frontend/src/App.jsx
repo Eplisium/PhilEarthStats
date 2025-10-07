@@ -1,11 +1,12 @@
 import React, { useEffect, useCallback, useMemo, useState } from 'react';
-import { Activity, MapPin, TrendingUp, AlertTriangle, RefreshCw, Mountain, Brain, Github, Minimize2, Maximize2, Layers, Clock } from 'lucide-react';
+import { Activity, MapPin, TrendingUp, AlertTriangle, RefreshCw, Mountain, Brain, Github, Minimize2, Maximize2, Layers, Clock as ClockIcon, Globe } from 'lucide-react';
 import EarthquakeMap from './components/EarthquakeMap';
 import EarthquakeList from './components/EarthquakeList';
 import Statistics from './components/Statistics';
 import VolcanoList from './components/VolcanoList';
 import AIAnalysis from './components/AIAnalysis';
 import CustomTooltip from './components/CustomTooltip';
+import Clock from './components/Clock';
 import useCountUp from './hooks/useCountUp';
 import useTabStore from './store/tabStore';
 import useDataStore from './store/useDataStore';
@@ -35,7 +36,6 @@ function App() {
   const volcanoes = useDataStore(state => state.volcanoes);
   const loading = useDataStore(state => state.loading);
   const lastUpdate = useDataStore(state => state.lastUpdate);
-  const currentTime = useDataStore(state => state.currentTime);
   const showAllEarthquakes = useDataStore(state => state.showAllEarthquakes);
   
   // Actions
@@ -181,7 +181,7 @@ function App() {
                       className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 rounded-md border border-blue-200 transition-all hover:scale-105 hover:bg-blue-100"
                       title="Click to view earthquake list"
                     >
-                      <Clock className="h-3.5 w-3.5 text-blue-600" />
+                      <ClockIcon className="h-3.5 w-3.5 text-blue-600" />
                       <span className="text-xs font-semibold text-blue-700">Today: {headerStats.todayEarthquakes}</span>
                     </button>
                     
@@ -237,19 +237,22 @@ function App() {
                     <span>Last updated: {lastUpdate.toLocaleString()}</span>
                   )}
                 </div>
-                <div className="flex flex-wrap items-center gap-2 sm:gap-4">
-                  <span className="font-semibold text-purple-600">
-                    Local Time: {currentTime.toLocaleTimeString()}
-                  </span>
-                  <span className="hidden sm:inline text-gray-400">|</span>
-                  <span className="text-xs">
-                    {currentTime.toLocaleDateString(undefined, { 
-                      weekday: 'short', 
-                      year: 'numeric', 
-                      month: 'short', 
-                      day: 'numeric' 
-                    })}
-                  </span>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
+                  {/* Time Zones Display */}
+                  <Clock />
+                  
+                  {/* Date Display */}
+                  <div className="hidden sm:flex items-center gap-2">
+                    <span className="text-gray-400">|</span>
+                    <span className="text-xs">
+                      {new Date().toLocaleDateString(undefined, { 
+                        weekday: 'short', 
+                        year: 'numeric', 
+                        month: 'short', 
+                        day: 'numeric' 
+                      })}
+                    </span>
+                  </div>
                 </div>
               </div>
             </>

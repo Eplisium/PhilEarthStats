@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useRef, useEffect } from 'react';
+import React, { useMemo, useState, useRef, useEffect, memo } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from 'react-leaflet';
 import MarkerClusterGroup from 'react-leaflet-cluster';
 import L from 'leaflet';
@@ -127,21 +127,45 @@ const EarthquakeMap = ({ selectedEarthquake = null }) => {
   };
 
   const getMagnitudeRadius = (magnitude) => {
-    return Math.pow(10, magnitude) * 100;
+    // Returns radius in meters - scaled appropriately for visualization
+    // Magnitude 3 = ~5km, Magnitude 5 = ~50km, Magnitude 7 = ~200km
+    return Math.pow(2, magnitude) * 1000;
   };
 
-  // Create custom volcano icon
-  const volcanoIcon = new L.Icon({
-    iconUrl: 'data:image/svg+xml;base64,' + btoa(`
-      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="red" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M10 2 8 8H3l7 12 4-20z"></path>
-        <path d="m14 14 4-8 3 4"></path>
-      </svg>
-    `),
-    iconSize: [32, 32],
-    iconAnchor: [16, 32],
-    popupAnchor: [0, -32]
-  });
+  // Create custom marker icons - memoized to prevent recreation
+  const createEarthquakeIcon = useMemo(() => (magnitude) => {
+    const color = getMagnitudeColor(magnitude);
+    const size = magnitude >= 6 ? 16 : magnitude >= 5 ? 14 : magnitude >= 4 ? 12 : 10;
+    
+    return L.divIcon({
+      html: `<div style="
+        width: ${size}px;
+        height: ${size}px;
+        background-color: ${color};
+        border: 2px solid white;
+        border-radius: 50%;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+      "></div>`,
+      className: 'earthquake-marker',
+      iconSize: [size, size],
+      iconAnchor: [size / 2, size / 2],
+      popupAnchor: [0, -size / 2]
+    });
+  }, []);
+
+  const volcanoIcon = useMemo(() => {
+    return new L.Icon({
+      iconUrl: 'data:image/svg+xml;base64,' + btoa(`
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="red" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M10 2 8 8H3l7 12 4-20z"></path>
+          <path d="m14 14 4-8 3 4"></path>
+        </svg>
+      `),
+      iconSize: [32, 32],
+      iconAnchor: [16, 32],
+      popupAnchor: [0, -32]
+    });
+  }, []);
 
   // Filter earthquakes by magnitude
   const filteredEarthquakes = useMemo(() => {
@@ -173,13 +197,13 @@ const EarthquakeMap = ({ selectedEarthquake = null }) => {
     if (mapRef.current) {
       const bounds = [];
       
-      if (showEarthquakes) {
+      if (showEarthquakes && filteredEarthquakes.length > 0) {
         filteredEarthquakes.forEach(eq => {
           bounds.push([eq.latitude, eq.longitude]);
         });
       }
       
-      if (showVolcanoes) {
+      if (showVolcanoes && volcanoes.length > 0) {
         volcanoes.forEach(v => {
           bounds.push([v.latitude, v.longitude]);
         });
@@ -187,6 +211,9 @@ const EarthquakeMap = ({ selectedEarthquake = null }) => {
       
       if (bounds.length > 0) {
         mapRef.current.fitBounds(bounds, { padding: [50, 50], maxZoom: 10 });
+      } else {
+        // Reset to default view if no data
+        handleResetView();
       }
     }
   };
@@ -350,83 +377,108 @@ const EarthquakeMap = ({ selectedEarthquake = null }) => {
             isFullscreen={isFullscreen}
           />
 
+          {/* Earthquake circles (visual effects) - rendered behind markers */}
+          {showEarthquakes && filteredEarthquakes.map((earthquake) => (
+            <Circle
+              key={`circle-${earthquake.id}`}
+              center={[earthquake.latitude, earthquake.longitude]}
+              radius={getMagnitudeRadius(earthquake.magnitude)}
+              pathOptions={{
+                color: getMagnitudeColor(earthquake.magnitude),
+                fillColor: getMagnitudeColor(earthquake.magnitude),
+                fillOpacity: 0.12,
+                weight: 1.5,
+                opacity: 0.5,
+                interactive: false // Makes circles non-interactive
+              }}
+            />
+          ))}
+
           {/* Earthquake markers with clustering */}
           {showEarthquakes && (
             <MarkerClusterGroup
               chunkedLoading
-              maxClusterRadius={50}
+              maxClusterRadius={60}
               spiderfyOnMaxZoom={true}
               showCoverageOnHover={false}
               zoomToBoundsOnClick={true}
+              disableClusteringAtZoom={16}
+              spiderfyDistanceMultiplier={1.5}
+              animate={true}
+              animateAddingMarkers={true}
+              removeOutsideVisibleBounds={true}
               iconCreateFunction={(cluster) => {
                 const count = cluster.getChildCount();
-                let size = 'small';
-                let color = 'bg-blue-500';
+                let size = 40;
+                let bgColor = '#3b82f6';
                 
                 if (count > 50) {
-                  size = 'large';
-                  color = 'bg-red-500';
+                  size = 50;
+                  bgColor = '#dc2626';
                 } else if (count > 20) {
-                  size = 'medium';
-                  color = 'bg-orange-500';
+                  size = 45;
+                  bgColor = '#ea580c';
+                } else if (count > 10) {
+                  bgColor = '#8b5cf6';
                 }
                 
-                const sizeClass = size === 'large' ? 'h-12 w-12' : size === 'medium' ? 'h-10 w-10' : 'h-8 w-8';
-                
                 return L.divIcon({
-                  html: `<div class="${sizeClass} ${color} rounded-full flex items-center justify-center text-white font-bold text-sm shadow-lg border-2 border-white">${count}</div>`,
+                  html: `<div style="
+                    width: ${size}px;
+                    height: ${size}px;
+                    background-color: ${bgColor};
+                    border-radius: 50%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    color: white;
+                    font-weight: bold;
+                    font-size: 14px;
+                    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+                    border: 3px solid white;
+                    cursor: pointer;
+                  ">${count}</div>`,
                   className: 'custom-cluster-icon',
-                  iconSize: L.point(40, 40, true)
+                  iconSize: L.point(size, size, true)
                 });
               }}
             >
               {filteredEarthquakes.map((earthquake) => (
-                <React.Fragment key={earthquake.id}>
-                  <Circle
-                    center={[earthquake.latitude, earthquake.longitude]}
-                    radius={getMagnitudeRadius(earthquake.magnitude)}
-                    pathOptions={{
-                      color: getMagnitudeColor(earthquake.magnitude),
-                      fillColor: getMagnitudeColor(earthquake.magnitude),
-                      fillOpacity: 0.15,
-                      weight: 2.5,
-                      opacity: 0.8
-                    }}
-                  />
-                  <Marker
-                    position={[earthquake.latitude, earthquake.longitude]}
-                  >
-                    <Popup>
-                      <div className="p-2 min-w-[200px]">
-                        <h3 className="font-bold text-lg mb-2">
-                          M {earthquake.magnitude.toFixed(1)} Earthquake
-                        </h3>
-                        <div className="space-y-1 text-sm">
-                          <p><strong>Location:</strong> {earthquake.place}</p>
-                          <p><strong>Time:</strong> {format(new Date(earthquake.time), 'PPpp')}</p>
-                          <p><strong>Depth:</strong> {earthquake.depth.toFixed(1)} km</p>
-                          <p><strong>Coordinates:</strong> {earthquake.latitude.toFixed(3)}°, {earthquake.longitude.toFixed(3)}°</p>
-                          {earthquake.significance && (
-                            <p><strong>Significance:</strong> {earthquake.significance}</p>
-                          )}
-                          {earthquake.tsunami && (
-                            <p className="text-red-600 font-semibold">⚠️ Tsunami Warning</p>
-                          )}
-                          {earthquake.url && (
-                            <a
-                              href={earthquake.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-blue-600 hover:text-blue-800 font-medium block mt-2"
-                            >
-                              More Details →
-                            </a>
-                          )}
-                        </div>
+                <Marker
+                  key={earthquake.id}
+                  position={[earthquake.latitude, earthquake.longitude]}
+                  icon={createEarthquakeIcon(earthquake.magnitude)}
+                >
+                  <Popup maxWidth={300} closeButton={true}>
+                    <div className="p-2 min-w-[250px]">
+                      <h3 className="font-bold text-lg mb-2" style={{ color: getMagnitudeColor(earthquake.magnitude) }}>
+                        M {earthquake.magnitude.toFixed(1)} Earthquake
+                      </h3>
+                      <div className="space-y-1 text-sm">
+                        <p><strong>Location:</strong> {earthquake.place}</p>
+                        <p><strong>Time:</strong> {format(new Date(earthquake.time), 'PPpp')}</p>
+                        <p><strong>Depth:</strong> {earthquake.depth.toFixed(1)} km</p>
+                        <p><strong>Coordinates:</strong> {earthquake.latitude.toFixed(3)}°, {earthquake.longitude.toFixed(3)}°</p>
+                        {earthquake.significance && (
+                          <p><strong>Significance:</strong> {earthquake.significance}</p>
+                        )}
+                        {earthquake.tsunami && (
+                          <p className="text-red-600 font-semibold">⚠️ Tsunami Warning</p>
+                        )}
+                        {earthquake.url && (
+                          <a
+                            href={earthquake.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:text-blue-800 font-medium block mt-2"
+                          >
+                            More Details →
+                          </a>
+                        )}
                       </div>
-                    </Popup>
-                  </Marker>
-                </React.Fragment>
+                    </div>
+                  </Popup>
+                </Marker>
               ))}
             </MarkerClusterGroup>
           )}
@@ -437,23 +489,28 @@ const EarthquakeMap = ({ selectedEarthquake = null }) => {
               key={volcano.id}
               position={[volcano.latitude, volcano.longitude]}
               icon={volcanoIcon}
+              zIndexOffset={1000}
             >
-              <Popup>
-                <div className="p-2 min-w-[200px]">
-                  <h3 className="font-bold text-lg mb-2">{volcano.name}</h3>
+              <Popup maxWidth={300} closeButton={true}>
+                <div className="p-2 min-w-[250px]">
+                  <h3 className="font-bold text-lg mb-2 text-red-600">🌋 {volcano.name}</h3>
                   <div className="space-y-1 text-sm">
                     <p><strong>Location:</strong> {volcano.location}</p>
                     <p><strong>Type:</strong> {volcano.type}</p>
                     <p><strong>Elevation:</strong> {volcano.elevation} m</p>
-                    <p><strong>Status:</strong> {volcano.status}</p>
+                    <p><strong>Status:</strong> <span className="capitalize">{volcano.status}</span></p>
                     <p>
                       <strong>Alert Level:</strong>{' '}
-                      <span className={`font-semibold ${volcano.alert_level > 0 ? 'text-orange-600' : 'text-green-600'}`}>
-                        {volcano.alert_level}
+                      <span className={`font-semibold px-2 py-0.5 rounded ${volcano.alert_level > 0 ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'}`}>
+                        Level {volcano.alert_level}
                       </span>
                     </p>
                     <p><strong>Last Eruption:</strong> {volcano.last_eruption}</p>
-                    <p className="text-gray-600 mt-2 italic">{volcano.description}</p>
+                    {volcano.description && (
+                      <p className="text-gray-600 mt-2 pt-2 border-t border-gray-200 italic text-xs">
+                        {volcano.description}
+                      </p>
+                    )}
                   </div>
                 </div>
               </Popup>
@@ -463,49 +520,67 @@ const EarthquakeMap = ({ selectedEarthquake = null }) => {
       </div>
 
       {/* Legend */}
-      <div className="mt-3 sm:mt-4 bg-white p-3 sm:p-4 rounded-lg border-2 border-gray-300 shadow-sm">
-        <h4 className="text-sm sm:text-base font-semibold mb-2">Legend</h4>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+      <div className="bg-white p-4 rounded-lg shadow-md border border-gray-200">
+        <h4 className="text-base font-bold mb-3 text-gray-800">Map Legend</h4>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <div>
-            <p className="text-xs sm:text-sm font-semibold mb-2 sm:mb-3 text-gray-700">Earthquake Magnitude:</p>
-            <div className="space-y-1 sm:space-y-2 text-xs">
-              <div className="flex items-center">
-                <div className="w-3 h-3 sm:w-4 sm:h-4 rounded-full mr-2 border border-gray-300 flex-shrink-0" style={{ backgroundColor: '#dc2626' }}></div>
-                <span className="font-medium">M ≥ 7.0 (Major)</span>
+            <p className="text-sm font-semibold mb-2 text-gray-700">Earthquake Magnitude</p>
+            <div className="space-y-1.5 text-xs">
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 rounded-full border-2 border-white shadow-sm flex-shrink-0" style={{ backgroundColor: '#dc2626' }}></div>
+                <span className="font-medium">≥ 7.0 Major</span>
               </div>
-              <div className="flex items-center">
-                <div className="w-3 h-3 sm:w-4 sm:h-4 rounded-full mr-2 border border-gray-300 flex-shrink-0" style={{ backgroundColor: '#ea580c' }}></div>
-                <span>M 6.0-6.9 (Strong)</span>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 rounded-full border-2 border-white shadow-sm flex-shrink-0" style={{ backgroundColor: '#ea580c' }}></div>
+                <span>6.0-6.9 Strong</span>
               </div>
-              <div className="flex items-center">
-                <div className="w-3 h-3 sm:w-4 sm:h-4 rounded-full mr-2 border border-gray-300 flex-shrink-0" style={{ backgroundColor: '#eab308' }}></div>
-                <span>M 5.0-5.9 (Moderate)</span>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 rounded-full border-2 border-white shadow-sm flex-shrink-0" style={{ backgroundColor: '#eab308' }}></div>
+                <span>5.0-5.9 Moderate</span>
               </div>
-              <div className="flex items-center">
-                <div className="w-3 h-3 sm:w-4 sm:h-4 rounded-full mr-2 border border-gray-300 flex-shrink-0" style={{ backgroundColor: '#3b82f6' }}></div>
-                <span>M 4.0-4.9 (Light)</span>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 rounded-full border-2 border-white shadow-sm flex-shrink-0" style={{ backgroundColor: '#3b82f6' }}></div>
+                <span>4.0-4.9 Light</span>
               </div>
-              <div className="flex items-center">
-                <div className="w-3 h-3 sm:w-4 sm:h-4 rounded-full mr-2 border border-gray-300 flex-shrink-0" style={{ backgroundColor: '#10b981' }}></div>
-                <span>M 3.0-3.9 (Minor)</span>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 rounded-full border-2 border-white shadow-sm flex-shrink-0" style={{ backgroundColor: '#10b981' }}></div>
+                <span>3.0-3.9 Minor</span>
               </div>
             </div>
           </div>
           <div>
-            <p className="text-xs sm:text-sm font-semibold mb-2 sm:mb-3 text-gray-700">Markers:</p>
-            <div className="space-y-1 text-xs">
-              <div className="flex items-center">
-                <div className="w-5 h-5 sm:w-6 sm:h-6 mr-2 flex-shrink-0">🔴</div>
+            <p className="text-sm font-semibold mb-2 text-gray-700">Map Features</p>
+            <div className="space-y-1.5 text-xs">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full border-2 border-white shadow-sm flex-shrink-0" style={{ backgroundColor: '#3b82f6' }}></div>
                 <span>Earthquake Epicenter</span>
               </div>
-              <div className="flex items-center">
-                <div className="w-5 h-5 sm:w-6 sm:h-6 mr-2 flex-shrink-0">🌋</div>
+              <div className="flex items-center gap-2">
+                <div className="w-5 h-5 flex-shrink-0">🌋</div>
                 <span>Active Volcano</span>
               </div>
-              <div className="flex items-center">
-                <div className="w-5 h-5 sm:w-6 sm:h-6 bg-blue-500 rounded-full text-white font-bold flex items-center justify-center mr-2 flex-shrink-0 text-xs">5</div>
-                <span>Clustered Events</span>
+              <div className="flex items-center gap-2">
+                <div className="w-10 h-10 rounded-full opacity-30 border flex-shrink-0" style={{ backgroundColor: '#3b82f6', borderColor: '#3b82f6' }}></div>
+                <span>Impact Zone</span>
               </div>
+            </div>
+          </div>
+          <div>
+            <p className="text-sm font-semibold mb-2 text-gray-700">Clusters</p>
+            <div className="space-y-1.5 text-xs">
+              <div className="flex items-center gap-2">
+                <div className="w-10 h-10 bg-blue-500 rounded-full text-white font-bold flex items-center justify-center shadow-md border-2 border-white flex-shrink-0 text-xs">15</div>
+                <span>Small Cluster</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-11 h-11 bg-orange-500 rounded-full text-white font-bold flex items-center justify-center shadow-md border-2 border-white flex-shrink-0 text-sm">25</div>
+                <span>Medium Cluster</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-12 h-12 bg-red-500 rounded-full text-white font-bold flex items-center justify-center shadow-md border-2 border-white flex-shrink-0 text-sm">50+</div>
+                <span>Large Cluster</span>
+              </div>
+              <p className="text-gray-500 italic mt-2">Click clusters to zoom in and reveal individual events</p>
             </div>
           </div>
         </div>
@@ -514,4 +589,8 @@ const EarthquakeMap = ({ selectedEarthquake = null }) => {
   );
 };
 
-export default EarthquakeMap;
+// Memoize component to prevent re-renders when parent updates unrelated state
+export default memo(EarthquakeMap, (prevProps, nextProps) => {
+  // Only re-render if selectedEarthquake changes
+  return prevProps.selectedEarthquake?.id === nextProps.selectedEarthquake?.id;
+});
