@@ -15,6 +15,7 @@ import {
   Activity,
   Navigation,
   Plane,
+  Car,
   Clock,
   MapPin as MapPinIcon
 } from 'lucide-react';
@@ -254,6 +255,33 @@ const EarthquakeMap = ({ selectedEarthquake = null }) => {
     return R * c;
   };
 
+  // Determine which ocean needs to be crossed
+  const determineOceanCrossing = (lat, lon) => {
+    // Philippines center: 12.8797°N, 121.7740°E
+    // Determine ocean based on user's location relative to Philippines
+    
+    // Americas (Atlantic or Pacific)
+    if (lon < -30) {
+      return 'Atlantic & Pacific Oceans';
+    }
+    // Pacific Ocean (East of Philippines)
+    else if (lon > 135) {
+      return 'Pacific Ocean';
+    }
+    // Indian Ocean (Far West - Africa, Middle East, Western India)
+    else if (lon < 90) {
+      return 'Indian Ocean & South China Sea';
+    }
+    // South China Sea (West of Philippines - Mainland Asia)
+    else if (lon < 115) {
+      return 'South China Sea';
+    }
+    // Near Philippines
+    else {
+      return 'South China Sea';
+    }
+  };
+
   // Calculate travel time estimates
   const calculateTravelStats = (distanceKm) => {
     // Average speeds
@@ -359,6 +387,9 @@ const EarthquakeMap = ({ selectedEarthquake = null }) => {
           // Determine if user is in Philippines (within ~500km)
           const isInPhilippines = distance < 500;
           
+          // Determine ocean crossing for car route
+          const oceanCrossing = determineOceanCrossing(latitude, longitude);
+          
           // Set user location
           setUserLocation({ latitude, longitude, accuracy });
           
@@ -368,6 +399,7 @@ const EarthquakeMap = ({ selectedEarthquake = null }) => {
             distanceMiles: (distance * 0.621371).toFixed(2),
             travelByPlane: travelStats.byPlane,
             travelByCar: travelStats.byCar,
+            oceanCrossing: oceanCrossing,
             isInPhilippines,
             coordinates: `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`,
             accuracy: Math.round(accuracy)
@@ -712,10 +744,13 @@ const EarthquakeMap = ({ selectedEarthquake = null }) => {
                           </div>
                           <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-2 border border-blue-200">
                             <div className="flex items-center gap-1.5 mb-1">
-                              <Activity className="h-3.5 w-3.5 text-blue-600" />
+                              <Car className="h-3.5 w-3.5 text-blue-600" />
                               <span className="text-xs font-medium text-blue-700">By Car</span>
                             </div>
                             <p className="text-sm font-bold text-blue-900">{locationStats.travelByCar}</p>
+                            {locationStats.oceanCrossing && (
+                              <p className="text-xs text-blue-600 mt-1">🌊 via {locationStats.oceanCrossing}</p>
+                            )}
                           </div>
                         </div>
                       )}

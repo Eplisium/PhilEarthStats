@@ -10,7 +10,16 @@ const Clock = memo(() => {
   return (
     <div className="flex flex-wrap items-center gap-2 sm:gap-3">
       {/* Philippine Time (PHT) */}
-      <div className="flex items-center gap-1.5 px-2.5 py-1 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-md border border-blue-200">
+      <div 
+        className="flex items-center gap-1.5 px-2.5 py-1 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-md border border-blue-200 cursor-help"
+        title={currentTime.toLocaleDateString('en-US', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+          timeZone: 'Asia/Manila'
+        })}
+      >
         <Globe className="h-3.5 w-3.5 text-blue-600" />
         <span className="font-semibold text-blue-700 text-xs">
           PHT: {currentTime.toLocaleTimeString('en-US', {
@@ -24,7 +33,15 @@ const Clock = memo(() => {
       </div>
       
       {/* Local Time */}
-      <div className="flex items-center gap-1.5 px-2.5 py-1 bg-gradient-to-r from-purple-50 to-pink-50 rounded-md border border-purple-200">
+      <div 
+        className="flex items-center gap-1.5 px-2.5 py-1 bg-gradient-to-r from-purple-50 to-pink-50 rounded-md border border-purple-200 cursor-help"
+        title={currentTime.toLocaleDateString('en-US', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        })}
+      >
         <ClockIcon className="h-3.5 w-3.5 text-purple-600" />
         <span className="font-semibold text-purple-700 text-xs">
           Local: {currentTime.toLocaleTimeString('en-US', {
@@ -37,7 +54,16 @@ const Clock = memo(() => {
       </div>
       
       {/* UTC Time */}
-      <div className="flex items-center gap-1.5 px-2.5 py-1 bg-gradient-to-r from-gray-50 to-slate-50 rounded-md border border-gray-200">
+      <div 
+        className="flex items-center gap-1.5 px-2.5 py-1 bg-gradient-to-r from-gray-50 to-slate-50 rounded-md border border-gray-200 cursor-help"
+        title={currentTime.toLocaleDateString('en-US', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+          timeZone: 'UTC'
+        })}
+      >
         <ClockIcon className="h-3.5 w-3.5 text-gray-600" />
         <span className="font-semibold text-gray-700 text-xs">
           UTC: {currentTime.toLocaleTimeString('en-US', {
