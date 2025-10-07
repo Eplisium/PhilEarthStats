@@ -42,14 +42,21 @@ npm run dev
 **Option 1: Using Docker Compose (Recommended)**
 
 ```bash
+# Create .env file for environment variables (optional)
+cp backend/.env.example backend/.env
+# Edit backend/.env and add your OPENROUTER_API_KEY
+
 # Build and start
 docker-compose up -d
 
 # View logs
-docker-compose logs -f
+docker-compose logs -f app
 
 # Stop
 docker-compose down
+
+# Stop and remove volumes (deletes database)
+docker-compose down -v
 ```
 
 **Option 2: Using Docker directly**
@@ -59,7 +66,19 @@ docker-compose down
 docker build -t philearthstats .
 
 # Run the container
-docker run -d -p 5000:5000 --name philearthstats philearthstats
+docker run -d \
+  -p 5000:5000 \
+  -e OPENROUTER_API_KEY=your_api_key_here \
+  --name philearthstats \
+  philearthstats
+
+# Run with persistent database
+docker run -d \
+  -p 5000:5000 \
+  -e OPENROUTER_API_KEY=your_api_key_here \
+  -v philearthstats-data:/app/instance \
+  --name philearthstats \
+  philearthstats
 
 # View logs
 docker logs -f philearthstats
@@ -68,6 +87,11 @@ docker logs -f philearthstats
 docker stop philearthstats
 docker rm philearthstats
 ```
+
+**Environment Variables:**
+- `OPENROUTER_API_KEY`: Your OpenRouter API key for AI analysis features
+- `FLASK_ENV`: Set to `production` for production deployments
+- `CACHE_TIMEOUT`: Cache timeout in seconds (default: 300)
 
 **Access the application:**
 - Open browser to `http://localhost:5000`
