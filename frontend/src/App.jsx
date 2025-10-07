@@ -9,12 +9,14 @@ import CustomTooltip from './components/CustomTooltip';
 import useCountUp from './hooks/useCountUp';
 import useTabStore from './store/tabStore';
 import useDataStore from './store/useDataStore';
+import useMapStore from './store/useMapStore';
 // Import your custom logo - place your logo.jpg in the src/assets folder
 import logoImage from './assets/logo.jpg';
 
 function App() {
   // Use Zustand stores with optimized selectors
   const { activeTab, setActiveTab } = useTabStore();
+  const selectedEarthquake = useMapStore(state => state.selectedEarthquake);
   
   // Separate selectors for better performance - only re-render when needed
   const earthquakes = useDataStore(state => state.earthquakes);
@@ -294,7 +296,7 @@ function App() {
             )}
 
             {!loading && activeTab === 'map' && (
-              <EarthquakeMap />
+              <EarthquakeMap selectedEarthquake={selectedEarthquake} />
             )}
 
             {!loading && activeTab === 'earthquakes' && (

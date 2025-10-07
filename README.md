@@ -10,27 +10,58 @@ A real-time monitoring system for Philippines earthquakes and volcanoes, pulling
 
 ### Real-time Monitoring
 - **Real-time Earthquake Data**: Live earthquake information from USGS Earthquake Catalog
-- **Interactive Map**: Visual representation of earthquake epicenters and active volcanoes
-- **Volcano Monitoring**: Track active volcanoes in the Philippines with alert levels
+- **Dual Data Modes**: Toggle between filtered (M ≥ 2.5) and all earthquakes including tiny aftershocks
+- **Interactive Map**: Advanced visual representation of earthquake epicenters and active volcanoes
+- **Volcano Monitoring**: Track active volcanoes in the Philippines with alert levels and detailed metrics
 - **Detailed Statistics**: Comprehensive analysis of earthquake patterns, magnitudes, and depths
 - **Auto-refresh**: Automatic data updates every 5 minutes
-- **Responsive Design**: Beautiful, modern UI that works on desktop and mobile
+- **Responsive Design**: Beautiful, modern UI that works seamlessly on desktop, tablet, and mobile
+
+### Advanced Interactive Map 🗺️
+- **Marker Clustering**: Intelligent grouping of nearby earthquakes for better visualization
+- **Multiple Basemaps**: Choose from Street, Satellite, Dark mode, and Terrain views
+- **Magnitude Filter**: Slider to filter earthquakes by magnitude threshold (0.0 to 8.0)
+- **Layer Controls**: Toggle earthquake and volcano layers independently
+- **Smart Navigation**: 
+  - Zoom to extent (fit all data)
+  - Reset to default Philippines view
+  - Locate user with GPS
+  - Fullscreen mode support
+- **Interactive Selection**: Click earthquakes in the list to view them on the map with automatic flyTo animation
+- **Color-Coded Markers**: Magnitude-based color coding from green (minor) to red (major)
+- **Circle Overlays**: Radius represents earthquake intensity
+- **Detailed Popups**: Click markers for comprehensive earthquake/volcano information
 
 ### AI-Powered Analysis 🤖
-- **Intelligent Insights**: AI-powered seismological analysis using OpenRouter LLMs
-- **Expert Analysis**: Get comprehensive assessments of seismic activity patterns
-- **Risk Assessment**: AI-generated risk evaluations and safety recommendations
-- **Pattern Detection**: Identify trends, clustering, and earthquake sequences
-- **Multiple AI Models**: Supports Grok, GPT-4o, and Gemini models with automatic fallback
+- **Multiple AI Models**: Choose from Grok, GPT-4o, Claude, and Gemini with automatic fallback
+- **90-Day Analysis**: Comprehensive seismological analysis of the last 3 months
+- **Regional Breakdown**: Detailed statistics for Luzon, Visayas, and Mindanao regions
+- **Historical Comparison**: 
+  - Compare with previous 90-day period
+  - Compare with same period last year
+- **Enhanced Depth Analysis**: Categorization by very shallow (<10km), shallow, intermediate, and deep
+- **Regional Risk Scores**: Color-coded risk assessment (0-100) for each major region
+- **Seismic Cluster Detection**: Identify geographic clusters of earthquake activity
+- **Aftershock Sequence Analysis**: Detect mainshock-aftershock relationships
+- **Temporal Trends**: Track increasing/decreasing activity patterns over time
+- **Gutenberg-Richter b-value**: Calculate statistical seismic parameters
+- **Energy Release Calculation**: Total energy released in joules
+- **Progress Tracking**: Real-time progress indicators during AI analysis
+- **Markdown Formatting**: Beautiful, formatted analysis with tables and lists
 
-### Historical Data 📚
-- **Historical Earthquake Database**: SQLite database storing all detected earthquakes
-- **Worst Years Ranking**: Analysis of most severe earthquake years in Philippine history
-- **Year Statistics**: Comprehensive yearly earthquake statistics and trends
-- **Calendar View**: Visual calendar showing earthquake activity by date
-- **Date Range Queries**: Filter and analyze earthquakes within custom date ranges
-- **Historical Data Sync**: Import historical earthquake data from USGS
-- **Notable Events**: Pre-seeded data for major Philippine earthquakes (1976, 1990, 2012, 2013, 2019)
+### Historical Data & Calendar 📚
+- **SQLite Database**: Persistent storage of all detected earthquakes
+- **Worst Years Ranking**: Interactive cards showing the most devastating earthquake years in Philippine history
+- **Severity Scoring**: Advanced algorithm ranking years by total impact, casualties, and magnitude
+- **Interactive Calendar View**: 
+  - Visual calendar with color-coded magnitude indicators
+  - Click dates to view all events for that day
+  - Month/year picker dropdowns for easy navigation
+  - "Go to Today" quick navigation button
+- **On-Demand Historical Sync**: Manually fetch data for any past month/year from USGS
+- **Date Range Queries**: Custom date filtering for detailed historical analysis
+- **Notable Events**: Pre-seeded data for major Philippine earthquakes (1976-2019)
+- **Automatic Data Tracking**: All recent earthquakes automatically stored for future reference
 
 ## Data Sources 📊
 
@@ -56,15 +87,24 @@ A real-time monitoring system for Philippines earthquakes and volcanoes, pulling
 - **OpenRouter API**: AI integration for intelligent earthquake analysis
 
 ### Frontend
-- **React 18**: Modern UI library
-- **Vite**: Next-generation frontend tooling
-- **TailwindCSS**: Utility-first CSS framework
-- **Leaflet & React-Leaflet**: Interactive mapping
-- **Recharts**: Data visualization and charts
-- **Lucide React**: Beautiful icon system
-- **date-fns**: Date formatting utilities
-- **react-markdown**: Markdown rendering for AI analysis
-- **Zustand**: Lightweight state management
+- **React 18**: Modern UI library with hooks
+- **Vite**: Next-generation frontend tooling for blazing fast development
+- **TailwindCSS**: Utility-first CSS framework for rapid UI development
+- **Leaflet & React-Leaflet**: Interactive mapping library
+- **Leaflet Marker Clustering**: Intelligent marker grouping for better performance
+- **Recharts**: Beautiful, responsive data visualization and charts
+- **Lucide React**: Beautiful, consistent icon system
+- **date-fns**: Modern date formatting and manipulation
+- **react-markdown**: Markdown rendering with GitHub Flavored Markdown support
+- **remark-gfm & remark-breaks**: Enhanced markdown parsing plugins
+- **Zustand**: Lightweight, fast state management with multiple stores
+  - `useDataStore`: Main earthquake and volcano data
+  - `aiAnalysisStore`: AI analysis state and progress
+  - `useCalendarStore`: Calendar and historical data
+  - `useMapStore`: Map interaction and selection
+  - `tabStore`: Tab navigation state
+  - `useStatisticsStore`: Statistics animations
+  - `useEarthquakeListStore`: List sorting and filtering
 
 ## Installation 🚀
 
@@ -218,61 +258,215 @@ Get comprehensive API information and available endpoints
 
 ## Features in Detail 📱
 
-### 1. Interactive Map View
-- Real-time plotting of earthquake epicenters
-- Color-coded markers based on magnitude
-- Circle radius representing earthquake intensity
-- Volcano markers with detailed information
-- Click on markers for detailed popups
+### 1. Advanced Interactive Map
+- **Real-time Plotting**: Live earthquake epicenters with automatic updates
+- **Marker Clustering**: Groups nearby earthquakes for better performance and readability
+- **Color-Coded System**: Magnitude-based color coding (green to red)
+- **Circle Overlays**: Radius represents earthquake intensity and impact zone
+- **Multiple Basemaps**: Switch between Street, Satellite, Dark, and Terrain views
+- **Magnitude Filter**: Interactive slider to filter earthquakes (0.0 to 8.0)
+- **Layer Toggles**: Show/hide earthquakes and volcanoes independently
+- **Advanced Controls**:
+  - Zoom to extent (fit all data in view)
+  - Reset to default Philippines view
+  - GPS-based user location
+  - Fullscreen mode support
+- **Smart Navigation**: Click "View on Map" from earthquake list to automatically fly to location
+- **Detailed Popups**: Click markers for comprehensive information with external links
 
-### 2. Earthquake List
-- Sort by time, magnitude, or depth
-- Filter between all earthquakes and significant events
-- Detailed information cards with direct links to USGS
-- Visual indicators for tsunami warnings and alerts
+### 2. Enhanced Earthquake List
+- **Flexible Sorting**: Sort by time (newest/oldest), magnitude, or depth
+- **Smart Filtering**: Toggle between all earthquakes and significant events only
+- **Interactive Cards**: Detailed information cards with magnitude color coding
+- **Map Integration**: "View on Map" button that navigates to map and highlights the earthquake
+- **External Links**: Direct links to USGS detailed event pages
+- **Visual Indicators**: Tsunami warnings, alert levels, and significance badges
+- **Responsive Layout**: Optimized for mobile, tablet, and desktop viewing
 
-### 3. Volcano Monitoring
-- Comprehensive list of active Philippine volcanoes
-- PHIVOLCS alert level indicators
-- Detailed information including elevation, location, and last eruption
-- Alert level descriptions and safety information
+### 3. Comprehensive Volcano Monitoring
+- **6 Active Volcanoes**: Mayon, Taal, Pinatubo, Bulusan, Kanlaon, and Hibok-Hibok
+- **PHIVOLCS Alert Levels**: Real-time alert status (Level 0-5) with color coding
+- **Detailed Eruption History**:
+  - Total historical eruptions
+  - Most recent significant eruption with VEI (Volcanic Explosivity Index)
+  - Average years between eruptions
+  - Casualty information
+- **Hazard Zone Information**:
+  - Primary hazards (pyroclastic flows, lahars, ashfall, etc.)
+  - Permanent Danger Zone (PDZ) radius
+  - Extended Danger Zone (EDZ) radius
+  - Affected population estimates
+  - Critical infrastructure impact
+- **Real-Time Monitoring Data**:
+  - Number of seismic stations
+  - 24-hour earthquake count
+  - Ground deformation status
+  - SO₂ emission levels (tons/day)
+  - Last observation timestamp
+- **Practical Information**:
+  - Observatory contacts
+  - Nearest city and distance
+  - Number of evacuation centers
+  - Emergency contact numbers
+- **Additional Context**:
+  - Tectonic setting
+  - Crater diameter and morphology
+  - Cultural significance
+  - Tourism status
+- **Expandable Cards**: Click to reveal comprehensive details including historical eruptions, hazard assessments, and monitoring data
+- **Summary Statistics**: Total volcanoes monitored, on alert count, normal status count, at-risk population, and seismic network capacity
 
-### 4. Statistics Dashboard
-- Total earthquake count and trends
-- Magnitude distribution charts
-- Depth distribution analysis
-- Maximum, minimum, and average values
-- Visual data representation with charts
+### 4. Advanced Statistics Dashboard
+- **Summary Cards** with animated count-up numbers:
+  - Total events (last 30 days)
+  - Maximum magnitude
+  - Average magnitude
+  - Average depth
+- **Interactive Charts** with smooth animations:
+  - Magnitude distribution (bar chart with color gradients)
+  - Depth distribution (donut chart with percentages)
+- **Detailed Statistics**:
+  - Magnitude breakdown by classification (micro to great)
+  - Depth classification (shallow, intermediate, deep)
+  - Maximum, minimum, and average values with precision
+- **Calendar Integration**: Historical earthquake calendar with worst years ranking
+- **Chart Re-animation**: Charts animate each time you view the Statistics tab
+- **Hover Effects**: Interactive chart elements with detailed tooltips
 
-### 5. AI-Powered Analysis 🤖
-- Expert seismological analysis of earthquake patterns
-- Risk assessment and safety recommendations
-- Pattern detection and trend identification
-- Geographic distribution analysis
-- Actionable insights for residents and authorities
+### 5. AI-Powered Seismological Analysis 🤖
+- **Model Selection**: Choose from multiple AI models:
+  - xAI Grok (latest)
+  - OpenAI GPT-4o
+  - Anthropic Claude
+  - Google Gemini
+  - Automatic fallback if primary model fails
+- **Comprehensive 90-Day Analysis**:
+  - Total earthquake count and energy released
+  - Maximum, average, and significant event statistics
+- **Regional Breakdown** (Luzon, Visayas, Mindanao):
+  - Event count and percentage
+  - Average and maximum magnitude per region
+  - Significant events count
+  - Average depth analysis
+- **Historical Comparison**:
+  - Compare with previous 90-day period (percentage change)
+  - Year-over-year comparison (same period last year)
+  - Magnitude trend analysis
+- **Enhanced Depth Distribution**:
+  - Very Shallow (<10 km) - High damage risk
+  - Shallow (10-70 km) - Moderate risk
+  - Intermediate (70-300 km) - Lower impact
+  - Deep (≥300 km) - Minimal impact
+- **Regional Risk Scores** (0-100 scale):
+  - Color-coded risk levels (Low, Moderate, High, Critical)
+  - Factors: activity, magnitude, significant events, shallow depth
+- **Seismic Cluster Detection**:
+  - Geographic clusters of earthquake activity
+  - Cluster location, count, and magnitude statistics
+- **Aftershock Sequence Analysis**:
+  - Mainshock identification
+  - Aftershock count and largest aftershock magnitude
+  - Location and temporal information
+- **Temporal Trends**:
+  - Increasing/Decreasing/Stable patterns
+  - Segmented analysis by time periods
+- **Gutenberg-Richter b-value**: Statistical analysis of magnitude-frequency distribution
+- **Progress Tracking**: Real-time progress bar with detailed step indicators
+- **Markdown Formatted Output**: Beautiful, readable analysis with tables, lists, and formatting
 
-### 6. Historical Data Explorer 📚
-- Browse worst earthquake years in Philippine history
-- View yearly statistics and notable events
-- Calendar view of earthquake activity
-- Custom date range filtering
-- Historical database with automatic tracking
+### 6. Historical Data Explorer & Calendar 📚
+- **Worst Years Ranking**:
+  - Top 6 most devastating earthquake years displayed
+  - Severity score calculation based on magnitude, events, and casualties
+  - Damage level indicators (Severe, High, Moderate, Low)
+  - Max magnitude, total events, and major events count
+  - Estimated deaths (when applicable)
+  - Notable event descriptions
+- **Interactive Calendar View**:
+  - Month/year grid showing earthquake activity
+  - Color-coded dates by maximum magnitude
+  - Event count badges on each date
+  - Click dates to view all events for that day
+  - Month/year dropdown selectors for easy navigation
+  - "Go to Today" quick navigation button
+- **Historical Data Sync**:
+  - Manual "Refresh" button to fetch data for specific months
+  - Automatic detection of missing data with fetch prompts
+  - Support for historical data back to early 2000s
+  - Progress indicators during data synchronization
+- **Date Details Panel**:
+  - Expandable view showing all earthquakes on selected date
+  - Time, magnitude, location, depth, and coordinates
+  - Significance scores
+- **Database Features**:
+  - SQLite persistent storage
+  - Automatic tracking of all recent earthquakes
+  - Year-based statistics with severity scoring
+  - Notable historical events pre-seeded (1976-2019)
+
+## UI/UX Features 🎨
+
+### Design & Responsiveness
+- **Modern Gradient Design**: Beautiful purple-to-blue gradients throughout the interface
+- **Fully Responsive**: Optimized layouts for mobile (320px+), tablet, and desktop
+- **Dark Mode Support**: Dark basemap option for night-time viewing
+- **Custom Tooltips**: Helpful tooltips on hover for all interactive elements
+- **Smooth Animations**: 
+  - Animated count-up numbers using custom `useCountUp` hook
+  - Chart animations with staggered delays
+  - Tab transition animations
+  - Map flyTo animations with easing
+  - Hover effects and scale transitions
+- **Loading States**: Beautiful spinners and progress indicators
+- **Color Coding**: Consistent color scheme for magnitude levels across all views
+- **Interactive Elements**: 
+  - Hover effects on cards and buttons
+  - Click feedback animations
+  - Expandable/collapsible sections
+- **Accessibility**: Proper ARIA labels, keyboard navigation support
+
+### User Experience
+- **Real-time Clock**: Live local time display in header
+- **Last Update Indicator**: Shows when data was last refreshed
+- **Scroll to Top**: Click logo to quickly scroll to top of page
+- **Tab Navigation**: Persistent tab state with smooth transitions
+- **Data Filter Toggle**: Easy switch between filtered and all earthquake data
+- **Quick Actions**: 
+  - Manual refresh button
+  - "View on Map" quick navigation
+  - "Go to Today" in calendar
+  - Reset map view
+- **Error Handling**: User-friendly error messages with actionable suggestions
+- **GitHub Attribution**: Link to developer profile in footer
 
 ## Database & Caching 💾
 
-### Database
-- **SQLite** database for historical earthquake storage
-- Automatic database creation and seeding on first run
-- Stores all earthquake events with full metadata
-- Year-based statistics with severity scoring
-- Notable historical events pre-loaded (1976-2019)
+### Database (SQLite)
+- **Automatic Initialization**: Database and tables created automatically on first run
+- **Earthquake Storage**: 
+  - Stores all earthquake events with complete USGS metadata
+  - Fields: ID, magnitude, place, time, coordinates, depth, URL, significance, tsunami flag, etc.
+- **Year Statistics**: 
+  - Aggregated statistics by year
+  - Severity scoring algorithm based on:
+    - Maximum magnitude (weighted heavily)
+    - Total event count
+    - Major events (M ≥ 6.0)
+    - Estimated casualties
+  - Damage level classification (Severe, High, Moderate, Low)
+- **Notable Events**: Pre-seeded historical earthquakes from Philippine history (1976-2019)
+- **Historical Seeding**: Database automatically seeds with major historical events on first run
 
-### Caching
-The API implements a 5-minute cache system to:
-- Reduce load on external APIs
-- Improve response times
-- Ensure data consistency
-- Comply with rate limiting
+### Caching System
+The API implements an intelligent 5-minute cache system:
+- **Cache Keys**: Separate caches for different endpoints (recent, all, significant, statistics)
+- **Automatic Expiration**: Cache expires after 300 seconds (5 minutes)
+- **Benefits**:
+  - Reduces load on USGS and external APIs
+  - Improves response times dramatically
+  - Ensures data consistency across concurrent requests
+  - Complies with API rate limiting
+  - Minimizes bandwidth usage
 
 ## Data Accuracy 📍
 
@@ -288,37 +482,58 @@ This application pulls data from official scientific sources:
 ```
 PhilEarthStats/
 ├── backend/
-│   ├── app.py              # Flask API server
-│   ├── database.py         # Database models and services
+│   ├── app.py              # Flask API server with all endpoints
+│   ├── database.py         # SQLite database models and services
+│   ├── ai_config.py        # AI model configuration and fallback
+│   ├── ai_prompts.py       # AI prompt templates and configuration
 │   ├── requirements.txt    # Python dependencies
 │   ├── .env.example        # Environment variables template
-│   └── earthquakes.db      # SQLite database (auto-created)
+│   ├── earthquakes.db      # SQLite database (auto-created)
+│   └── instance/           # Database instance directory
 ├── frontend/
 │   ├── src/
 │   │   ├── components/
-│   │   │   ├── EarthquakeMap.jsx
-│   │   │   ├── EarthquakeList.jsx
-│   │   │   ├── Statistics.jsx
-│   │   │   ├── VolcanoList.jsx
-│   │   │   ├── AIAnalysis.jsx          # AI analysis component
-│   │   │   └── EarthquakeCalendar.jsx  # Calendar view
-│   │   ├── App.jsx         # Main application
-│   │   ├── main.jsx        # Entry point
-│   │   └── index.css       # Global styles
+│   │   │   ├── EarthquakeMap.jsx       # Advanced interactive map
+│   │   │   ├── EarthquakeList.jsx      # Sortable earthquake list
+│   │   │   ├── Statistics.jsx          # Charts and statistics
+│   │   │   ├── VolcanoList.jsx         # Comprehensive volcano data
+│   │   │   ├── AIAnalysis.jsx          # AI-powered analysis
+│   │   │   ├── EarthquakeCalendar.jsx  # Calendar view
+│   │   │   └── CustomTooltip.jsx       # Reusable tooltip component
+│   │   ├── store/                       # Zustand state management
+│   │   │   ├── useDataStore.js          # Main data store
+│   │   │   ├── aiAnalysisStore.js       # AI analysis state
+│   │   │   ├── useCalendarStore.js      # Calendar state
+│   │   │   ├── useMapStore.js           # Map interaction state
+│   │   │   ├── tabStore.js              # Tab navigation
+│   │   │   ├── useStatisticsStore.js    # Statistics animations
+│   │   │   ├── useEarthquakeListStore.js # List filtering/sorting
+│   │   │   ├── selectors.js             # Memoized selectors
+│   │   │   └── index.js                 # Store exports
+│   │   ├── hooks/
+│   │   │   └── useCountUp.js            # Animated counter hook
+│   │   ├── assets/
+│   │   │   └── logo.jpg                 # Application logo
+│   │   ├── App.jsx         # Main application component
+│   │   ├── main.jsx        # React entry point
+│   │   └── index.css       # Global styles with Tailwind
 │   ├── index.html          # HTML template
 │   ├── package.json        # Node dependencies
-│   ├── vite.config.js      # Vite configuration
-│   └── tailwind.config.js  # Tailwind configuration
+│   ├── vite.config.js      # Vite bundler configuration
+│   ├── tailwind.config.js  # Tailwind CSS configuration
+│   └── postcss.config.js   # PostCSS configuration
 ├── Dockerfile              # Docker container configuration
 ├── docker-compose.yml      # Docker Compose setup
 ├── start-all.bat           # Windows: Start both servers
 ├── start-backend.bat       # Windows: Start backend only
 ├── start-frontend.bat      # Windows: Start frontend only
+├── .gitignore              # Git ignore patterns
 ├── README.md               # This file
 ├── SETUP_GUIDE.md          # Detailed setup instructions
 ├── QUICKSTART.md           # Quick start guide
 ├── DEPLOYMENT.md           # Deployment guide
-└── CONTRIBUTING.md         # Contribution guidelines
+├── CONTRIBUTING.md         # Contribution guidelines
+└── LICENSE                 # License information
 ```
 
 ### Environment Configuration
@@ -394,11 +609,47 @@ In case of emergency, follow official government advisories and evacuation order
 
 ## Credits 🙏
 
-- **USGS Earthquake Hazards Program** for providing comprehensive earthquake data
-- **PHIVOLCS** for volcano monitoring and seismological data
-- **OpenRouter** for AI/LLM API access (Grok, GPT-4o, Gemini)
-- **OpenStreetMap** contributors for map tiles
-- **React**, **Flask**, and all open-source libraries used in this project
+### Data Providers
+- **USGS Earthquake Hazards Program** for providing comprehensive, real-time earthquake data
+- **PHIVOLCS** (Philippine Institute of Volcanology and Seismology) for volcano monitoring and seismological data
+- **OpenRouter** for AI/LLM API access enabling intelligent seismological analysis
+
+### Technologies & Libraries
+
+**Backend:**
+- **Flask** - Python web framework
+- **Flask-SQLAlchemy** - Database ORM
+- **Requests** - HTTP library
+- **python-dotenv** - Environment management
+
+**Frontend:**
+- **React** - UI library
+- **Vite** - Build tool
+- **TailwindCSS** - Styling framework
+- **Leaflet** & **React-Leaflet** - Interactive maps
+- **Leaflet.markercluster** - Marker clustering
+- **Recharts** - Data visualization
+- **Zustand** - State management
+- **Lucide React** - Icon system
+- **date-fns** - Date formatting
+- **react-markdown**, **remark-gfm**, **remark-breaks** - Markdown rendering
+
+**AI Models:**
+- **xAI Grok** - Advanced reasoning
+- **OpenAI GPT-4o** - Natural language processing
+- **Anthropic Claude** - Analytical AI
+- **Google Gemini** - Multi-modal AI
+
+**Map Tiles:**
+- **OpenStreetMap** contributors
+- **Esri** (satellite imagery)
+- **CARTO** (dark mode tiles)
+- **OpenTopoMap** (terrain tiles)
+
+### Special Thanks
+- All open-source contributors who make projects like this possible
+- The seismology and volcanology community for their dedication to public safety
+- **Eplisium** - Developer and maintainer
 
 ## Support 💬
 

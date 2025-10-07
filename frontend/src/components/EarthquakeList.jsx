@@ -1,8 +1,10 @@
 import React, { useMemo } from 'react';
 import { format } from 'date-fns';
-import { ExternalLink, AlertTriangle, MapPin } from 'lucide-react';
+import { ExternalLink, AlertTriangle, MapPin, Map } from 'lucide-react';
 import useDataStore from '../store/useDataStore';
 import useEarthquakeListStore from '../store/useEarthquakeListStore';
+import useMapStore from '../store/useMapStore';
+import useTabStore from '../store/tabStore';
 
 const EarthquakeList = () => {
   // Use Zustand stores with optimized selectors
@@ -12,6 +14,18 @@ const EarthquakeList = () => {
   const setShowSignificant = useEarthquakeListStore(state => state.setShowSignificant);
   const sortBy = useEarthquakeListStore(state => state.sortBy);
   const setSortBy = useEarthquakeListStore(state => state.setSortBy);
+  
+  // Map and tab stores for navigation
+  const setSelectedEarthquake = useMapStore(state => state.setSelectedEarthquake);
+  const setActiveTab = useTabStore(state => state.setActiveTab);
+  
+  // Handle view on map
+  const handleViewOnMap = (earthquake) => {
+    setSelectedEarthquake(earthquake);
+    setActiveTab('map');
+    // Scroll to top to show the map
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const getMagnitudeColor = (magnitude) => {
     if (magnitude >= 7) return 'bg-red-100 text-red-800 border-red-300';
@@ -148,17 +162,26 @@ const EarthquakeList = () => {
                     )}
                   </div>
 
-                  {earthquake.url && (
-                    <a
-                      href={earthquake.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 mt-3 text-purple-600 hover:text-purple-700 text-xs sm:text-sm font-medium"
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    <button
+                      onClick={() => handleViewOnMap(earthquake)}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 bg-purple-100 text-purple-700 hover:bg-purple-200 rounded-lg text-xs sm:text-sm font-medium transition-colors"
                     >
-                      View Details on USGS
-                      <ExternalLink className="h-3 w-3" />
-                    </a>
-                  )}
+                      <Map className="h-3 w-3" />
+                      View on Map
+                    </button>
+                    {earthquake.url && (
+                      <a
+                        href={earthquake.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-100 text-blue-700 hover:bg-blue-200 rounded-lg text-xs sm:text-sm font-medium transition-colors"
+                      >
+                        <ExternalLink className="h-3 w-3" />
+                        USGS Details
+                      </a>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
