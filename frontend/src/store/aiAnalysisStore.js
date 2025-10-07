@@ -22,6 +22,7 @@ const useAIAnalysisStore = create(
       lastGenerated: null,
       availableModels: [],
       selectedModel: null,
+      selectedModelName: null,
       loadingModels: false,
       
       // Phase 4.3: Progress tracking
@@ -47,7 +48,10 @@ const useAIAnalysisStore = create(
       
       setError: (error) => set({ error, loading: false }),
       
-      setSelectedModel: (model) => set({ selectedModel: model }),
+      setSelectedModel: (modelId, modelName) => set({ 
+        selectedModel: modelId,
+        selectedModelName: modelName 
+      }),
       
       // Phase 4.3: Update progress
       setProgress: (stage, percentage, message) => set({
@@ -74,11 +78,35 @@ const useAIAnalysisStore = create(
           const data = await response.json();
 
           if (data.success) {
-            set({ 
-              availableModels: data.models,
-              selectedModel: get().selectedModel || data.default_model,
-              loadingModels: false
-            });
+            const currentSelectedModel = get().selectedModel;
+            const defaultModelId = data.default_model;
+            
+            // If no model selected yet, use default
+            if (!currentSelectedModel) {
+              const defaultModel = data.models.find(m => m.id === defaultModelId);
+              set({ 
+                availableModels: data.models,
+                selectedModel: defaultModelId,
+                selectedModelName: defaultModel ? defaultModel.name : defaultModelId,
+                loadingModels: false
+              });
+            } else {
+              // If model is already selected, try to update its name if not set
+              const selectedModelName = get().selectedModelName;
+              if (!selectedModelName) {
+                const currentModel = data.models.find(m => m.id === currentSelectedModel);
+                set({ 
+                  availableModels: data.models,
+                  selectedModelName: currentModel ? currentModel.name : currentSelectedModel,
+                  loadingModels: false
+                });
+              } else {
+                set({ 
+                  availableModels: data.models,
+                  loadingModels: false
+                });
+              }
+            }
           } else {
             console.error('Failed to fetch AI models:', data.error);
             set({ loadingModels: false });
@@ -287,6 +315,7 @@ const useAIAnalysisStore = create(
         analysis: state.analysis,
         lastGenerated: state.lastGenerated,
         selectedModel: state.selectedModel,
+        selectedModelName: state.selectedModelName,
         sessionId: state.sessionId
       }), // Only persist these fields
     }

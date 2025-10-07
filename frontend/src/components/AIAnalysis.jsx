@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { Brain, Loader, AlertCircle, TrendingUp, Activity, Trash2, Sparkles } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Brain, Loader, AlertCircle, TrendingUp, Activity, Trash2, Sparkles, ChevronDown, Zap, Check } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
@@ -21,12 +21,27 @@ const AIAnalysis = () => {
     setSelectedModel
   } = useAIAnalysisStore();
 
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
   // Fetch available models on component mount
   useEffect(() => {
     if (availableModels.length === 0) {
       fetchAvailableModels();
     }
   }, []);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (isDropdownOpen && !event.target.closest('.model-selector-container')) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isDropdownOpen]);
+
+  const currentModel = availableModels.find(m => m.id === selectedModel);
 
   return (
     <div className="space-y-6">
@@ -43,30 +58,112 @@ const AIAnalysis = () => {
               for the Philippines region. The AI will assess patterns, risks, and provide actionable recommendations.
             </p>
             
-            {/* Model Selection */}
-            <div className="mb-3 sm:mb-4">
-              <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-2">
-                <Sparkles className="inline h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+            {/* Model Selection - Enhanced Custom Dropdown */}
+            <div className="mb-3 sm:mb-4 model-selector-container relative">
+              <label className="block text-xs sm:text-sm font-bold text-gray-800 mb-2.5 flex items-center gap-1.5">
+                <div className="p-1 bg-gradient-to-br from-purple-500 to-pink-500 rounded-md">
+                  <Sparkles className="h-3 w-3 sm:h-4 sm:w-4 text-white" />
+                </div>
                 AI Model Selection
               </label>
-              <select
-                value={selectedModel || ''}
-                onChange={(e) => setSelectedModel(e.target.value)}
+              
+              {/* Custom Dropdown Button */}
+              <button
+                type="button"
+                onClick={() => !loading && !loadingModels && setIsDropdownOpen(!isDropdownOpen)}
                 disabled={loading || loadingModels}
-                className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 disabled:opacity-50 disabled:cursor-not-allowed bg-white text-gray-900 text-sm sm:text-base"
+                className={`w-full px-4 py-3 bg-gradient-to-r from-white to-purple-50 border-2 rounded-xl 
+                  transition-all duration-200 text-left flex items-center justify-between group
+                  ${loading || loadingModels 
+                    ? 'opacity-50 cursor-not-allowed border-gray-300' 
+                    : 'hover:border-purple-400 hover:shadow-lg hover:shadow-purple-100 border-purple-200 cursor-pointer'
+                  }
+                  ${isDropdownOpen ? 'border-purple-500 shadow-lg shadow-purple-100' : ''}
+                `}
               >
-                {loadingModels ? (
-                  <option>Loading models...</option>
-                ) : (
-                  availableModels.map((model) => (
-                    <option key={model.id} value={model.id}>
-                      {model.name} - {model.description}
-                    </option>
-                  ))
-                )}
-              </select>
-              <p className="text-xs text-gray-600 mt-1">
-                Select the AI model to use for analysis. Different models may provide varying insights.
+                <div className="flex-1 min-w-0">
+                  {loadingModels ? (
+                    <div className="flex items-center gap-2">
+                      <Loader className="h-4 w-4 animate-spin text-purple-600" />
+                      <span className="text-sm font-medium text-gray-600">Loading models...</span>
+                    </div>
+                  ) : currentModel ? (
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <Zap className="h-4 w-4 text-purple-600 flex-shrink-0" />
+                        <span className="text-sm sm:text-base font-bold text-gray-900 truncate">
+                          {currentModel.name}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-600 truncate pl-6">
+                        {currentModel.description}
+                      </p>
+                    </div>
+                  ) : (
+                    <span className="text-sm text-gray-500">Select a model...</span>
+                  )}
+                </div>
+                <ChevronDown 
+                  className={`h-5 w-5 text-purple-600 flex-shrink-0 ml-2 transition-transform duration-200 
+                    ${isDropdownOpen ? 'transform rotate-180' : ''}
+                    ${!loading && !loadingModels ? 'group-hover:text-purple-700' : ''}
+                  `} 
+                />
+              </button>
+
+              {/* Dropdown Menu */}
+              {isDropdownOpen && !loadingModels && (
+                <div className="absolute z-50 w-full mt-2 bg-white border-2 border-purple-200 rounded-xl shadow-2xl max-h-96 overflow-y-auto">
+                  <div className="p-2">
+                    {availableModels.map((model) => (
+                      <button
+                        key={model.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedModel(model.id, model.name);
+                          setIsDropdownOpen(false);
+                        }}
+                        className={`w-full px-4 py-3 rounded-lg text-left transition-all duration-150 mb-1
+                          ${selectedModel === model.id 
+                            ? 'bg-gradient-to-r from-purple-100 to-pink-100 border-2 border-purple-400' 
+                            : 'hover:bg-gradient-to-r hover:from-purple-50 hover:to-pink-50 border-2 border-transparent'
+                          }
+                        `}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className="flex-shrink-0 mt-1">
+                            {selectedModel === model.id ? (
+                              <div className="p-1 bg-purple-600 rounded-full">
+                                <Check className="h-3 w-3 text-white" />
+                              </div>
+                            ) : (
+                              <div className="p-1 bg-gray-200 rounded-full">
+                                <Zap className="h-3 w-3 text-gray-400" />
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className={`text-sm font-bold mb-1 ${
+                              selectedModel === model.id ? 'text-purple-900' : 'text-gray-900'
+                            }`}>
+                              {model.name}
+                            </div>
+                            <div className={`text-xs ${
+                              selectedModel === model.id ? 'text-purple-700' : 'text-gray-600'
+                            }`}>
+                              {model.description}
+                            </div>
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <p className="text-xs text-gray-600 mt-2 flex items-start gap-1">
+                <span className="text-purple-600 font-semibold">💡</span>
+                Different models provide varying insights and analysis styles.
               </p>
             </div>
             <div className="flex flex-wrap gap-2 text-xs sm:text-sm text-gray-600">

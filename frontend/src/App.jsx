@@ -1,5 +1,5 @@
-import React, { useEffect, useCallback, useMemo } from 'react';
-import { Activity, MapPin, TrendingUp, AlertTriangle, RefreshCw, Mountain, Brain, Github } from 'lucide-react';
+import React, { useEffect, useCallback, useMemo, useState } from 'react';
+import { Activity, MapPin, TrendingUp, AlertTriangle, RefreshCw, Mountain, Brain, Github, Minimize2, Maximize2, Layers, Clock } from 'lucide-react';
 import EarthquakeMap from './components/EarthquakeMap';
 import EarthquakeList from './components/EarthquakeList';
 import Statistics from './components/Statistics';
@@ -10,13 +10,23 @@ import useCountUp from './hooks/useCountUp';
 import useTabStore from './store/tabStore';
 import useDataStore from './store/useDataStore';
 import useMapStore from './store/useMapStore';
+import useAIAnalysisStore from './store/aiAnalysisStore';
 // Import your custom logo - place your logo.jpg in the src/assets folder
 import logoImage from './assets/logo.jpg';
 
 function App() {
+  // Local state for compact header mode
+  const [compactHeader, setCompactHeader] = useState(false);
+  
   // Use Zustand stores with optimized selectors
   const { activeTab, setActiveTab } = useTabStore();
   const selectedEarthquake = useMapStore(state => state.selectedEarthquake);
+  
+  // AI Analysis store
+  const aiAnalysis = useAIAnalysisStore(state => state.analysis);
+  const aiSelectedModel = useAIAnalysisStore(state => state.selectedModel);
+  const aiSelectedModelName = useAIAnalysisStore(state => state.selectedModelName);
+  const aiAvailableModels = useAIAnalysisStore(state => state.availableModels);
   
   // Separate selectors for better performance - only re-render when needed
   const earthquakes = useDataStore(state => state.earthquakes);
@@ -53,6 +63,39 @@ function App() {
   const animatedActiveVolcanoes = useCountUp(getActiveVolcanoesCount(), 800, 0);
   const animatedMaxMagnitude = useCountUp(statistics ? statistics.magnitude_stats.max : 0, 800, 1);
 
+  // Calculate additional statistics for header
+  const headerStats = useMemo(() => {
+    if (!statistics || !earthquakes.length) return null;
+    
+    const avgDepth = statistics.depth_stats?.average || 0;
+    const totalVolcanoes = volcanoes.length;
+    const todayEarthquakes = earthquakes.filter(eq => {
+      const eqTime = new Date(eq.time);
+      const today = new Date();
+      return eqTime.toDateString() === today.toDateString();
+    }).length;
+    
+    // Get AI model name - use persisted name first, then look up in available models
+    let aiModelName = null;
+    if (aiAnalysis && aiSelectedModel) {
+      if (aiSelectedModelName) {
+        aiModelName = aiSelectedModelName;
+      } else {
+        const model = aiAvailableModels.find(m => m.id === aiSelectedModel);
+        aiModelName = model ? model.name : aiSelectedModel;
+      }
+    }
+    
+    return {
+      avgDepth: Math.round(avgDepth),
+      totalVolcanoes,
+      todayEarthquakes,
+      avgMagnitude: statistics.magnitude_stats?.average || 0,
+      hasAiAnalysis: !!aiAnalysis,
+      aiModelName
+    };
+  }, [statistics, earthquakes, volcanoes, aiAnalysis, aiSelectedModel, aiSelectedModelName, aiAvailableModels]);
+
   const getMagnitudeColor = (magnitude) => {
     if (magnitude >= 7) return 'text-red-600';
     if (magnitude >= 6) return 'text-orange-600';
@@ -76,14 +119,14 @@ function App() {
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-100">
       {/* Header */}
       <header className="bg-white shadow-md sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+        <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 transition-all duration-300 ${compactHeader ? 'py-2' : 'py-4 sm:py-6'}`}>
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
             <div className="flex items-center space-x-2 sm:space-x-3">
               {/* Custom Logo - Replace logo.jpg in src/assets folder */}
               <img 
                 src={logoImage} 
                 alt="PhilEarthStats Logo" 
-                className="h-10 w-10 sm:h-12 sm:w-12 object-contain rounded-lg flex-shrink-0"
+                className={`object-contain rounded-lg flex-shrink-0 transition-all duration-300 ${compactHeader ? 'h-6 w-6 sm:h-7 sm:w-7' : 'h-10 w-10 sm:h-12 sm:w-12'}`}
                 onError={(e) => {
                   // Fallback to Activity icon if image fails to load
                   e.target.style.display = 'none';
@@ -94,45 +137,123 @@ function App() {
               <div>
                 <CustomTooltip text="Click to scroll to top" position="bottom">
                   <h1 
-                    className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 cursor-pointer hover:text-purple-600 transition-colors"
+                    className={`font-bold text-gray-900 cursor-pointer hover:text-purple-600 transition-all duration-300 ${compactHeader ? 'text-base sm:text-lg' : 'text-xl sm:text-2xl lg:text-3xl'}`}
                     onClick={scrollToTop}
                   >
                     PhilEarthStats
                   </h1>
                 </CustomTooltip>
-                <p className="text-xs sm:text-sm text-gray-600">Real-time Philippines Seismic & Volcanic Monitor</p>
+                {!compactHeader && (
+                  <p className="text-xs sm:text-sm text-gray-600 transition-opacity duration-300">Real-time Philippines Seismic & Volcanic Monitor</p>
+                )}
               </div>
             </div>
-            <button
-              onClick={fetchData}
-              disabled={loading}
-              className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm sm:text-base self-start sm:self-auto"
-            >
-              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-              <span>Refresh</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <CustomTooltip text={compactHeader ? "Expand header" : "Compact header"} position="bottom">
+                <button
+                  onClick={() => setCompactHeader(!compactHeader)}
+                  className="flex items-center justify-center p-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                  aria-label="Toggle compact mode"
+                >
+                  {compactHeader ? <Maximize2 className="h-4 w-4" /> : <Minimize2 className="h-4 w-4" />}
+                </button>
+              </CustomTooltip>
+              <button
+                onClick={fetchData}
+                disabled={loading}
+                className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm sm:text-base"
+              >
+                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                <span>Refresh</span>
+              </button>
+            </div>
           </div>
-          <div className="mt-2 flex flex-col sm:flex-row items-start sm:items-center justify-between text-xs text-gray-500 gap-2 sm:gap-4">
-            <div>
-              {lastUpdate && (
-                <span>Last updated: {lastUpdate.toLocaleString()}</span>
+          {!compactHeader && (
+            <>
+              {/* Overall Statistics Bar */}
+              {headerStats && (
+                <div className="mt-3 pt-3 border-t border-gray-200">
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                    <span className="text-xs text-gray-500 font-medium">Quick Stats:</span>
+                    
+                    <button
+                      onClick={() => setActiveTab('earthquakes')}
+                      className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 rounded-md border border-blue-200 transition-all hover:scale-105 hover:bg-blue-100"
+                      title="Click to view earthquake list"
+                    >
+                      <Clock className="h-3.5 w-3.5 text-blue-600" />
+                      <span className="text-xs font-semibold text-blue-700">Today: {headerStats.todayEarthquakes}</span>
+                    </button>
+                    
+                    <button
+                      onClick={() => setActiveTab('statistics')}
+                      className="flex items-center gap-1.5 px-2.5 py-1 bg-green-50 rounded-md border border-green-200 transition-all hover:scale-105 hover:bg-green-100"
+                      title="Click to view detailed statistics"
+                    >
+                      <Layers className="h-3.5 w-3.5 text-green-600" />
+                      <span className="text-xs font-semibold text-green-700">Avg Depth: {headerStats.avgDepth} km</span>
+                    </button>
+                    
+                    <button
+                      onClick={() => setActiveTab('statistics')}
+                      className="flex items-center gap-1.5 px-2.5 py-1 bg-purple-50 rounded-md border border-purple-200 transition-all hover:scale-105 hover:bg-purple-100"
+                      title="Click to view detailed statistics"
+                    >
+                      <TrendingUp className="h-3.5 w-3.5 text-purple-600" />
+                      <span className="text-xs font-semibold text-purple-700">Avg Mag: {headerStats.avgMagnitude.toFixed(1)}</span>
+                    </button>
+                    
+                    <button
+                      onClick={() => setActiveTab('volcanoes')}
+                      className="flex items-center gap-1.5 px-2.5 py-1 bg-orange-50 rounded-md border border-orange-200 transition-all hover:scale-105 hover:bg-orange-100"
+                      title="Click to view volcano list"
+                    >
+                      <Mountain className="h-3.5 w-3.5 text-orange-600" />
+                      <span className="text-xs font-semibold text-orange-700">Monitored: {headerStats.totalVolcanoes}</span>
+                    </button>
+                    
+                    <button
+                      onClick={() => setActiveTab('ai-analysis')}
+                      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md border transition-all hover:scale-105 ${
+                        headerStats.hasAiAnalysis
+                          ? 'bg-gradient-to-r from-purple-50 to-pink-50 border-purple-300 hover:from-purple-100 hover:to-pink-100'
+                          : 'bg-gray-50 border-gray-300 hover:bg-gray-100'
+                      }`}
+                      title={headerStats.hasAiAnalysis ? `Click to view AI analysis (${headerStats.aiModelName})` : 'Click to generate AI analysis'}
+                    >
+                      <Brain className={`h-3.5 w-3.5 ${headerStats.hasAiAnalysis ? 'text-purple-600' : 'text-gray-500'}`} />
+                      <span className={`text-xs font-semibold ${headerStats.hasAiAnalysis ? 'text-purple-700' : 'text-gray-600'}`}>
+                        {headerStats.hasAiAnalysis ? `AI: ${headerStats.aiModelName}` : 'No AI Analysis'}
+                      </span>
+                    </button>
+                  </div>
+                </div>
               )}
-            </div>
-            <div className="flex flex-wrap items-center gap-2 sm:gap-4">
-              <span className="font-semibold text-purple-600">
-                Local Time: {currentTime.toLocaleTimeString()}
-              </span>
-              <span className="hidden sm:inline text-gray-400">|</span>
-              <span className="text-xs">
-                {currentTime.toLocaleDateString(undefined, { 
-                  weekday: 'short', 
-                  year: 'numeric', 
-                  month: 'short', 
-                  day: 'numeric' 
-                })}
-              </span>
-            </div>
-          </div>
+              
+              {/* Time and Update Info */}
+              <div className="mt-2 flex flex-col sm:flex-row items-start sm:items-center justify-between text-xs text-gray-500 gap-2 sm:gap-4 transition-opacity duration-300">
+                <div>
+                  {lastUpdate && (
+                    <span>Last updated: {lastUpdate.toLocaleString()}</span>
+                  )}
+                </div>
+                <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+                  <span className="font-semibold text-purple-600">
+                    Local Time: {currentTime.toLocaleTimeString()}
+                  </span>
+                  <span className="hidden sm:inline text-gray-400">|</span>
+                  <span className="text-xs">
+                    {currentTime.toLocaleDateString(undefined, { 
+                      weekday: 'short', 
+                      year: 'numeric', 
+                      month: 'short', 
+                      day: 'numeric' 
+                    })}
+                  </span>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </header>
 
