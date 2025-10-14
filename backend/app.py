@@ -29,7 +29,11 @@ DatabaseService.initialize_database(app)
 
 # API Endpoints
 USGS_API = "https://earthquake.usgs.gov/fdsnws/event/1/query"
-USGS_GEOJSON_FEED = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson"
+# Real-time GeoJSON feeds (recommended by USGS, updated every 1-5 minutes)
+USGS_FEED_HOUR = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_hour.geojson"
+USGS_FEED_DAY = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson"
+USGS_FEED_WEEK = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_week.geojson"
+USGS_FEED_SIGNIFICANT = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/significant_month.geojson"
 PHIVOLCS_API = "https://earthquake.phivolcs.dost.gov.ph/"
 
 # Philippines bounds
@@ -40,7 +44,7 @@ PHILIPPINES_BOUNDS = {
     'maxlongitude': 127.0
 }
 
-# Cache timeout (5 minutes)
+# Cache timeout (5 minutes for balanced performance)
 CACHE_TIMEOUT = 300
 last_fetch_time = {}
 cache_data = {}
@@ -61,51 +65,72 @@ def get_cached_or_fetch(cache_key, fetch_function):
     last_fetch_time[cache_key] = time.time()
     return data
 
+def is_in_philippines(lat, lon):
+    """Check if coordinates are within Philippines bounds"""
+    return (PHILIPPINES_BOUNDS['minlatitude'] <= lat <= PHILIPPINES_BOUNDS['maxlatitude'] and
+            PHILIPPINES_BOUNDS['minlongitude'] <= lon <= PHILIPPINES_BOUNDS['maxlongitude'])
+
+def process_earthquake_feature(feature):
+    """Process a GeoJSON feature into earthquake dict"""
+    props = feature['properties']
+    coords = feature['geometry']['coordinates']
+    return {
+        'id': feature['id'],
+        'magnitude': props.get('mag'),
+        'place': props.get('place'),
+        'time': props.get('time'),
+        'updated': props.get('updated'),
+        'timezone': props.get('tz'),
+        'url': props.get('url'),
+        'detail': props.get('detail'),
+        'felt': props.get('felt'),
+        'alert': props.get('alert'),
+        'status': props.get('status'),
+        'tsunami': props.get('tsunami'),
+        'significance': props.get('sig'),
+        'type': props.get('type'),
+        'title': props.get('title'),
+        'longitude': coords[0],
+        'latitude': coords[1],
+        'depth': coords[2]
+    }
+
 @app.route('/api/earthquakes/all', methods=['GET'])
 def get_all_earthquakes():
     """Get ALL earthquakes in the Philippines including aftershocks (no minimum magnitude)"""
     try:
+        # Check if force refresh is requested (bypass cache)
+        force_refresh = request.args.get('force', 'false').lower() == 'true'
+        
         def fetch_all_earthquakes():
-            # Get ALL earthquakes from the last 7 days in Philippines region
-            params = {
-                'format': 'geojson',
-                'starttime': (datetime.utcnow() - timedelta(days=7)).strftime('%Y-%m-%d'),
-                'endtime': datetime.utcnow().strftime('%Y-%m-%d'),
-                **PHILIPPINES_BOUNDS,
-                'orderby': 'time',
-                'minmagnitude': 0  # Include all magnitudes, even tiny aftershocks
-            }
+            # Use USGS real-time feeds (updated every 1-5 minutes)
+            # Combine hour + day + week feeds for comprehensive 7-day coverage
+            all_earthquakes = {}
             
-            response = requests.get(USGS_API, params=params, timeout=10)
-            response.raise_for_status()
-            data = response.json()
+            for feed_url in [USGS_FEED_HOUR, USGS_FEED_DAY, USGS_FEED_WEEK]:
+                try:
+                    response = requests.get(feed_url, timeout=10)
+                    response.raise_for_status()
+                    data = response.json()
+                    
+                    # Filter to Philippines region and process
+                    for feature in data['features']:
+                        coords = feature['geometry']['coordinates']
+                        lat, lon = coords[1], coords[0]
+                        
+                        # Only include earthquakes in Philippines
+                        if is_in_philippines(lat, lon):
+                            eq_id = feature['id']
+                            # Use dict to avoid duplicates across feeds
+                            if eq_id not in all_earthquakes:
+                                all_earthquakes[eq_id] = process_earthquake_feature(feature)
+                except Exception as e:
+                    print(f"Warning: Failed to fetch from {feed_url}: {str(e)}")
+                    continue
             
-            # Process and enrich the data
-            earthquakes = []
-            for feature in data['features']:
-                props = feature['properties']
-                coords = feature['geometry']['coordinates']
-                
-                earthquakes.append({
-                    'id': feature['id'],
-                    'magnitude': props.get('mag'),
-                    'place': props.get('place'),
-                    'time': props.get('time'),
-                    'updated': props.get('updated'),
-                    'timezone': props.get('tz'),
-                    'url': props.get('url'),
-                    'detail': props.get('detail'),
-                    'felt': props.get('felt'),
-                    'alert': props.get('alert'),
-                    'status': props.get('status'),
-                    'tsunami': props.get('tsunami'),
-                    'significance': props.get('sig'),
-                    'type': props.get('type'),
-                    'title': props.get('title'),
-                    'longitude': coords[0],
-                    'latitude': coords[1],
-                    'depth': coords[2]
-                })
+            earthquakes = list(all_earthquakes.values())
+            # Sort by time (most recent first)
+            earthquakes.sort(key=lambda x: x['time'], reverse=True)
             
             # Store earthquakes in database for historical tracking
             DatabaseService.store_multiple_earthquakes(earthquakes)
@@ -118,11 +143,19 @@ def get_all_earthquakes():
                     'generated': int(time.time() * 1000),
                     'server_time_utc': datetime.utcnow().isoformat() + 'Z',
                     'title': 'All Philippines Earthquakes Including Aftershocks (7 days)',
-                    'source': 'USGS Earthquake Catalog'
+                    'source': 'USGS Real-time GeoJSON Feeds (Updated Every 1-5 Minutes)',
+                    'feed_update_frequency': '1-5 minutes'
                 }
             }
         
-        result = get_cached_or_fetch('all_earthquakes', fetch_all_earthquakes)
+        # Bypass cache if force refresh is requested
+        if force_refresh:
+            result = fetch_all_earthquakes()
+            cache_data['all_earthquakes'] = result
+            last_fetch_time['all_earthquakes'] = time.time()
+        else:
+            result = get_cached_or_fetch('all_earthquakes', fetch_all_earthquakes)
+        
         return jsonify(result)
     
     except requests.RequestException as e:
@@ -140,47 +173,36 @@ def get_all_earthquakes():
 def get_recent_earthquakes():
     """Get recent earthquakes in the Philippines from USGS (magnitude >= 2.5)"""
     try:
+        # Check if force refresh is requested (bypass cache)
+        force_refresh = request.args.get('force', 'false').lower() == 'true'
+        
         def fetch_earthquakes():
-            # Get earthquakes from the last 7 days in Philippines region
-            params = {
-                'format': 'geojson',
-                'starttime': (datetime.utcnow() - timedelta(days=7)).strftime('%Y-%m-%d'),
-                'endtime': datetime.utcnow().strftime('%Y-%m-%d'),
-                **PHILIPPINES_BOUNDS,
-                'orderby': 'time',
-                'minmagnitude': 2.5  # Filter out very small tremors for this endpoint
-            }
+            # Use USGS real-time feeds (updated every 1-5 minutes)
+            all_earthquakes = {}
             
-            response = requests.get(USGS_API, params=params, timeout=10)
-            response.raise_for_status()
-            data = response.json()
+            for feed_url in [USGS_FEED_HOUR, USGS_FEED_DAY, USGS_FEED_WEEK]:
+                try:
+                    response = requests.get(feed_url, timeout=10)
+                    response.raise_for_status()
+                    data = response.json()
+                    
+                    # Filter to Philippines region and magnitude >= 2.5
+                    for feature in data['features']:
+                        coords = feature['geometry']['coordinates']
+                        lat, lon = coords[1], coords[0]
+                        mag = feature['properties'].get('mag')
+                        
+                        # Only include earthquakes in Philippines with mag >= 2.5
+                        if is_in_philippines(lat, lon) and mag is not None and mag >= 2.5:
+                            eq_id = feature['id']
+                            if eq_id not in all_earthquakes:
+                                all_earthquakes[eq_id] = process_earthquake_feature(feature)
+                except Exception as e:
+                    print(f"Warning: Failed to fetch from {feed_url}: {str(e)}")
+                    continue
             
-            # Process and enrich the data
-            earthquakes = []
-            for feature in data['features']:
-                props = feature['properties']
-                coords = feature['geometry']['coordinates']
-                
-                earthquakes.append({
-                    'id': feature['id'],
-                    'magnitude': props.get('mag'),
-                    'place': props.get('place'),
-                    'time': props.get('time'),
-                    'updated': props.get('updated'),
-                    'timezone': props.get('tz'),
-                    'url': props.get('url'),
-                    'detail': props.get('detail'),
-                    'felt': props.get('felt'),
-                    'alert': props.get('alert'),
-                    'status': props.get('status'),
-                    'tsunami': props.get('tsunami'),
-                    'significance': props.get('sig'),
-                    'type': props.get('type'),
-                    'title': props.get('title'),
-                    'longitude': coords[0],
-                    'latitude': coords[1],
-                    'depth': coords[2]
-                })
+            earthquakes = list(all_earthquakes.values())
+            earthquakes.sort(key=lambda x: x['time'], reverse=True)
             
             # Store earthquakes in database for historical tracking
             DatabaseService.store_multiple_earthquakes(earthquakes)
@@ -193,11 +215,19 @@ def get_recent_earthquakes():
                     'generated': int(time.time() * 1000),
                     'server_time_utc': datetime.utcnow().isoformat() + 'Z',
                     'title': 'Recent Philippines Earthquakes (7 days, M ≥ 2.5)',
-                    'source': 'USGS Earthquake Catalog'
+                    'source': 'USGS Real-time GeoJSON Feeds (Updated Every 1-5 Minutes)',
+                    'feed_update_frequency': '1-5 minutes'
                 }
             }
         
-        result = get_cached_or_fetch('recent_earthquakes', fetch_earthquakes)
+        # Bypass cache if force refresh is requested
+        if force_refresh:
+            result = fetch_earthquakes()
+            cache_data['recent_earthquakes'] = result
+            last_fetch_time['recent_earthquakes'] = time.time()
+        else:
+            result = get_cached_or_fetch('recent_earthquakes', fetch_earthquakes)
+        
         return jsonify(result)
     
     except requests.RequestException as e:
@@ -215,53 +245,79 @@ def get_recent_earthquakes():
 def get_significant_earthquakes():
     """Get significant earthquakes (magnitude >= 4.5) in the Philippines"""
     try:
-        def fetch_significant():
-            params = {
-                'format': 'geojson',
-                'starttime': (datetime.utcnow() - timedelta(days=30)).strftime('%Y-%m-%d'),
-                'endtime': datetime.utcnow().strftime('%Y-%m-%d'),
-                'minmagnitude': 4.5,
-                **PHILIPPINES_BOUNDS,
-                'orderby': 'magnitude'
-            }
-            
-            response = requests.get(USGS_API, params=params, timeout=10)
-            response.raise_for_status()
-            data = response.json()
-            
-            earthquakes = []
-            for feature in data['features']:
-                props = feature['properties']
-                coords = feature['geometry']['coordinates']
-                
-                earthquakes.append({
-                    'id': feature['id'],
-                    'magnitude': props.get('mag'),
-                    'place': props.get('place'),
-                    'time': props.get('time'),
-                    'url': props.get('url'),
-                    'alert': props.get('alert'),
-                    'tsunami': props.get('tsunami'),
-                    'significance': props.get('sig'),
-                    'title': props.get('title'),
-                    'longitude': coords[0],
-                    'latitude': coords[1],
-                    'depth': coords[2]
-                })
-            
-            return {
-                'success': True,
-                'count': len(earthquakes),
-                'earthquakes': earthquakes,
-                'metadata': {
-                    'generated': int(time.time() * 1000),
-                    'server_time_utc': datetime.utcnow().isoformat() + 'Z',
-                    'title': 'Significant Philippines Earthquakes (30 days, M ≥ 4.5)',
-                    'source': 'USGS Earthquake Catalog'
-                }
-            }
+        # Check if force refresh is requested (bypass cache)
+        force_refresh = request.args.get('force', 'false').lower() == 'true'
         
-        result = get_cached_or_fetch('significant_earthquakes', fetch_significant)
+        def fetch_significant():
+            # Use USGS real-time significant feed (updated every 5 minutes)
+            try:
+                response = requests.get(USGS_FEED_SIGNIFICANT, timeout=10)
+                response.raise_for_status()
+                data = response.json()
+                
+                # Filter to Philippines region and magnitude >= 4.5
+                earthquakes = []
+                for feature in data['features']:
+                    coords = feature['geometry']['coordinates']
+                    lat, lon = coords[1], coords[0]
+                    mag = feature['properties'].get('mag')
+                    
+                    # Only include earthquakes in Philippines with mag >= 4.5
+                    if is_in_philippines(lat, lon) and mag is not None and mag >= 4.5:
+                        props = feature['properties']
+                        earthquakes.append({
+                            'id': feature['id'],
+                            'magnitude': mag,
+                            'place': props.get('place'),
+                            'time': props.get('time'),
+                            'url': props.get('url'),
+                            'alert': props.get('alert'),
+                            'tsunami': props.get('tsunami'),
+                            'significance': props.get('sig'),
+                            'title': props.get('title'),
+                            'longitude': coords[0],
+                            'latitude': coords[1],
+                            'depth': coords[2]
+                        })
+                
+                # Sort by magnitude (highest first)
+                earthquakes.sort(key=lambda x: x['magnitude'], reverse=True)
+                
+                return {
+                    'success': True,
+                    'count': len(earthquakes),
+                    'earthquakes': earthquakes,
+                    'metadata': {
+                        'generated': int(time.time() * 1000),
+                        'server_time_utc': datetime.utcnow().isoformat() + 'Z',
+                        'title': 'Significant Philippines Earthquakes (30 days, M ≥ 4.5)',
+                        'source': 'USGS Real-time GeoJSON Feeds (Updated Every 5 Minutes)',
+                        'feed_update_frequency': '5 minutes'
+                    }
+                }
+            except Exception as e:
+                print(f"Warning: Failed to fetch significant earthquakes: {str(e)}")
+                return {
+                    'success': True,
+                    'count': 0,
+                    'earthquakes': [],
+                    'metadata': {
+                        'generated': int(time.time() * 1000),
+                        'server_time_utc': datetime.utcnow().isoformat() + 'Z',
+                        'title': 'Significant Philippines Earthquakes (30 days, M ≥ 4.5)',
+                        'source': 'USGS Real-time GeoJSON Feeds',
+                        'error': str(e)
+                    }
+                }
+        
+        # Bypass cache if force refresh is requested
+        if force_refresh:
+            result = fetch_significant()
+            cache_data['significant_earthquakes'] = result
+            last_fetch_time['significant_earthquakes'] = time.time()
+        else:
+            result = get_cached_or_fetch('significant_earthquakes', fetch_significant)
+        
         return jsonify(result)
     
     except Exception as e:
@@ -274,22 +330,36 @@ def get_significant_earthquakes():
 def get_earthquake_statistics():
     """Get earthquake statistics for the Philippines"""
     try:
+        # Check if force refresh is requested (bypass cache)
+        force_refresh = request.args.get('force', 'false').lower() == 'true'
+        
         def fetch_statistics():
-            # Get all earthquakes from the last 30 days
-            params = {
-                'format': 'geojson',
-                'starttime': (datetime.utcnow() - timedelta(days=30)).strftime('%Y-%m-%d'),
-                'endtime': datetime.utcnow().strftime('%Y-%m-%d'),
-                **PHILIPPINES_BOUNDS
-            }
+            # Use USGS real-time feeds for 30-day statistics
+            all_earthquakes = {}
             
-            response = requests.get(USGS_API, params=params, timeout=10)
-            response.raise_for_status()
-            data = response.json()
+            # Use month feed for comprehensive 30-day data
+            try:
+                response = requests.get("https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_month.geojson", timeout=10)
+                response.raise_for_status()
+                data = response.json()
+                
+                # Filter to Philippines region
+                for feature in data['features']:
+                    coords = feature['geometry']['coordinates']
+                    lat, lon = coords[1], coords[0]
+                    
+                    if is_in_philippines(lat, lon):
+                        eq_id = feature['id']
+                        if eq_id not in all_earthquakes:
+                            all_earthquakes[eq_id] = process_earthquake_feature(feature)
+            except Exception as e:
+                print(f"Warning: Failed to fetch monthly feed for statistics: {str(e)}")
+            
+            earthquakes = list(all_earthquakes.values())
             
             # Calculate statistics
-            magnitudes = [f['properties']['mag'] for f in data['features'] if f['properties'].get('mag')]
-            depths = [f['geometry']['coordinates'][2] for f in data['features']]
+            magnitudes = [eq['magnitude'] for eq in earthquakes if eq.get('magnitude') is not None]
+            depths = [eq['depth'] for eq in earthquakes if eq.get('depth') is not None]
             
             # Count by magnitude ranges
             magnitude_ranges = {
@@ -312,7 +382,7 @@ def get_earthquake_statistics():
             return {
                 'success': True,
                 'period': '30 days',
-                'total_earthquakes': len(data['features']),
+                'total_earthquakes': len(earthquakes),
                 'magnitude_stats': {
                     'max': max(magnitudes) if magnitudes else 0,
                     'min': min(magnitudes) if magnitudes else 0,
@@ -328,11 +398,19 @@ def get_earthquake_statistics():
                 'metadata': {
                     'generated': int(time.time() * 1000),
                     'server_time_utc': datetime.utcnow().isoformat() + 'Z',
-                    'source': 'USGS Earthquake Catalog'
+                    'source': 'USGS Real-time GeoJSON Feeds',
+                    'feed_update_frequency': '5 minutes'
                 }
             }
         
-        result = get_cached_or_fetch('earthquake_statistics', fetch_statistics)
+        # Bypass cache if force refresh is requested
+        if force_refresh:
+            result = fetch_statistics()
+            cache_data['earthquake_statistics'] = result
+            last_fetch_time['earthquake_statistics'] = time.time()
+        else:
+            result = get_cached_or_fetch('earthquake_statistics', fetch_statistics)
+        
         return jsonify(result)
     
     except Exception as e:
@@ -1164,18 +1242,53 @@ def analyze_with_ai():
         
         # Get all earthquake data (90 days for better analysis)
         def fetch_all_data():
-            # Fetch earthquakes from last 90 days for comprehensive analysis
-            params = {
-                'format': 'geojson',
-                'starttime': (datetime.utcnow() - timedelta(days=90)).strftime('%Y-%m-%d'),
-                'endtime': datetime.utcnow().strftime('%Y-%m-%d'),
-                **PHILIPPINES_BOUNDS,
-                'orderby': 'time'
-            }
+            # Use USGS real-time feeds for faster, up-to-date data
+            # Combine month feed (30 days) with query API for full 90 days
+            all_earthquakes = {}
             
-            response = requests.get(USGS_API, params=params, timeout=10)
-            response.raise_for_status()
-            return response.json()
+            # First, get recent 30 days from real-time feed (fastest)
+            try:
+                response = requests.get("https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_month.geojson", timeout=10)
+                response.raise_for_status()
+                month_data = response.json()
+                
+                # Filter to Philippines and add to collection
+                for feature in month_data['features']:
+                    coords = feature['geometry']['coordinates']
+                    lat, lon = coords[1], coords[0]
+                    
+                    if is_in_philippines(lat, lon):
+                        all_earthquakes[feature['id']] = feature
+            except Exception as e:
+                print(f"Warning: Failed to fetch month feed: {str(e)}")
+            
+            # Then get older data (30-90 days) from query API for historical context
+            try:
+                params = {
+                    'format': 'geojson',
+                    'starttime': (datetime.utcnow() - timedelta(days=90)).strftime('%Y-%m-%d'),
+                    'endtime': (datetime.utcnow() - timedelta(days=30)).strftime('%Y-%m-%d'),
+                    **PHILIPPINES_BOUNDS,
+                    'orderby': 'time'
+                }
+                
+                response = requests.get(USGS_API, params=params, timeout=15)
+                response.raise_for_status()
+                older_data = response.json()
+                
+                # Add older earthquakes (avoid duplicates)
+                for feature in older_data['features']:
+                    eq_id = feature['id']
+                    if eq_id not in all_earthquakes:
+                        all_earthquakes[eq_id] = feature
+            except Exception as e:
+                print(f"Warning: Failed to fetch older data: {str(e)}")
+            
+            # Convert back to GeoJSON format
+            return {
+                'type': 'FeatureCollection',
+                'features': list(all_earthquakes.values())
+            }
         
         # Fetch historical data for comparison
         def fetch_historical_data(days_back):
@@ -1537,7 +1650,9 @@ Your response will be rendered with ReactMarkdown, so proper markdown syntax is 
                     url="https://openrouter.ai/api/v1/chat/completions",
                     headers={
                         "Authorization": f"Bearer {api_key}",
-                        "Content-Type": "application/json"
+                        "Content-Type": "application/json",
+                        "HTTP-Referer": "https://github.com/Eplisium/PhilEarthStats",
+                        "X-Title": "PhilEarthStats - Philippines Earthquake & Volcano Monitor"
                     },
                     json={
                         "model": model,
@@ -2116,35 +2231,42 @@ def trigger_insights_run():
             }), 400
         
         # Fetch recent earthquakes to analyze
-        # Use the cached earthquake data
+        # Use real-time feeds for faster, current data
         def fetch_earthquakes():
-            params = {
-                'format': 'geojson',
-                'starttime': (datetime.utcnow() - timedelta(days=14)).strftime('%Y-%m-%d'),
-                'endtime': datetime.utcnow().strftime('%Y-%m-%d'),
-                **PHILIPPINES_BOUNDS,
-                'orderby': 'time',
-                'minmagnitude': 2.5
-            }
+            all_earthquakes = {}
             
-            response = requests.get(USGS_API, params=params, timeout=15)
-            response.raise_for_status()
-            data = response.json()
+            # Use real-time feeds for 14-day data
+            for feed_url in [USGS_FEED_HOUR, USGS_FEED_DAY, USGS_FEED_WEEK]:
+                try:
+                    response = requests.get(feed_url, timeout=10)
+                    response.raise_for_status()
+                    data = response.json()
+                    
+                    # Filter to Philippines region and magnitude >= 2.5
+                    for feature in data['features']:
+                        coords = feature['geometry']['coordinates']
+                        lat, lon = coords[1], coords[0]
+                        mag = feature['properties'].get('mag')
+                        
+                        # Only include earthquakes in Philippines with mag >= 2.5
+                        if is_in_philippines(lat, lon) and mag is not None and mag >= 2.5:
+                            eq_id = feature['id']
+                            if eq_id not in all_earthquakes:
+                                props = feature['properties']
+                                all_earthquakes[eq_id] = {
+                                    'id': eq_id,
+                                    'magnitude': mag,
+                                    'place': props.get('place'),
+                                    'time': props.get('time'),
+                                    'longitude': coords[0],
+                                    'latitude': coords[1],
+                                    'depth': coords[2]
+                                }
+                except Exception as e:
+                    print(f"Warning: Failed to fetch from {feed_url}: {str(e)}")
+                    continue
             
-            earthquakes = []
-            for feature in data['features']:
-                props = feature['properties']
-                coords = feature['geometry']['coordinates']
-                
-                earthquakes.append({
-                    'id': feature['id'],
-                    'magnitude': props.get('mag'),
-                    'place': props.get('place'),
-                    'time': props.get('time'),
-                    'longitude': coords[0],
-                    'latitude': coords[1],
-                    'depth': coords[2]
-                })
+            earthquakes = list(all_earthquakes.values())
             
             return earthquakes
         
@@ -2162,7 +2284,9 @@ def trigger_insights_run():
             'metadata': {
                 'generated': int(time.time() * 1000),
                 'server_time_utc': datetime.utcnow().isoformat() + 'Z',
-                'manual_trigger': True
+                'manual_trigger': True,
+                'data_source': 'USGS Real-time GeoJSON Feeds',
+                'feed_update_frequency': '1-5 minutes'
             }
         })
     except Exception as e:

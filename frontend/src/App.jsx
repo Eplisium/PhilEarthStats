@@ -162,9 +162,10 @@ function App() {
                 </button>
               </CustomTooltip>
               <button
-                onClick={fetchData}
+                onClick={() => fetchData(true)}
                 disabled={loading}
                 className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm sm:text-base"
+                title="Force refresh - bypasses cache for latest data"
               >
                 <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
                 <span>Refresh</span>

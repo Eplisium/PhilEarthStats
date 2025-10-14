@@ -48,7 +48,7 @@ const useDataStore = create(
       updateCurrentTime: () => set({ currentTime: new Date() }),
 
       // Fetch all data
-      fetchData: async () => {
+      fetchData: async (forceRefresh = false) => {
         set({ loading: true, error: null });
         
         try {
@@ -57,10 +57,13 @@ const useDataStore = create(
             ? '/api/earthquakes/all' 
             : '/api/earthquakes/recent';
           
+          // Add force=true parameter to bypass cache when manual refresh is clicked
+          const forceParam = forceRefresh ? '?force=true' : '';
+          
           const [earthquakesRes, significantRes, statsRes, volcanoesRes] = await Promise.all([
-            fetch(`${API_BASE_URL}${earthquakeEndpoint}`),
-            fetch(`${API_BASE_URL}/api/earthquakes/significant`),
-            fetch(`${API_BASE_URL}/api/earthquakes/statistics`),
+            fetch(`${API_BASE_URL}${earthquakeEndpoint}${forceParam}`),
+            fetch(`${API_BASE_URL}/api/earthquakes/significant${forceParam}`),
+            fetch(`${API_BASE_URL}/api/earthquakes/statistics${forceParam}`),
             fetch(`${API_BASE_URL}/api/volcanoes/active`)
           ]);
 
